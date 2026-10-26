@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { Alert, Button, Card, Field, PageLoader, ProgressBar, TextArea } from "../components/ui";
+import { intakePath } from "../lib/intake";
 import type { Assessment, RoomConfig, Upload } from "../types";
 
 export function UploadsPage() {
@@ -44,9 +45,9 @@ export function UploadsPage() {
   }, [id]);
 
   const rooms = useMemo(() => {
-    if (!assessment) return [];
+    if (!assessment || !assessment.requiresIntake) return [];
     const requested = new Set(assessment.requestedRooms ?? []);
-    if (!requested.size) return [];
+    if (!requested.size) return assessment.intakeFormId ? allRooms : [];
     return allRooms.filter((room) => requested.has(room.id));
   }, [allRooms, assessment]);
 
@@ -139,6 +140,8 @@ export function UploadsPage() {
   }
 
   if (!assessment) return <PageLoader label="Loading photo areas" />;
+  if (!assessment.requiresIntake) return <Navigate to="/reports" replace />;
+  if (assessment.intakeFormId && !assessment.intakeComplete) return <Navigate to={intakePath(assessment)} replace />;
   if (assessment.submittedAt) return <Navigate to={`/assessment/${id}/submitted`} replace />;
   if (!rooms.length) {
     return (
@@ -153,23 +156,23 @@ export function UploadsPage() {
   if (!room) return <PageLoader label="Loading photo areas" />;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[16rem_1fr] lg:items-start">
-      <nav aria-label="Home areas" className="lg:sticky lg:top-24">
-        <Card className="p-4">
-          <p className="mb-3 flex items-center gap-2 px-1 text-base font-semibold">
+    <div className="grid min-w-0 gap-6 xl:grid-cols-[16rem_minmax(0,1fr)] xl:items-start">
+      <nav aria-label="Home areas" className="min-w-0 xl:sticky xl:top-24">
+        <Card className="p-3 sm:p-4">
+          <p className="mb-3 hidden items-center gap-2 px-1 text-base font-semibold xl:flex">
             <Camera className="size-5 text-teal" aria-hidden="true" />
             Areas
           </p>
-          <ol className="max-h-[55vh] space-y-1 overflow-auto pr-1">
+          <ol className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] xl:max-h-[55vh] xl:flex-col xl:space-y-1 xl:overflow-auto xl:pr-1 xl:pb-0 [&::-webkit-scrollbar]:hidden">
             {rooms.map((r, i) => {
               const count = countByRoom.get(r.id) ?? 0;
               const active = i === index;
               return (
-                <li key={r.id}>
+                <li key={r.id} className="shrink-0 xl:w-full xl:shrink">
                   <button
                     type="button"
                     onClick={() => goToRoom(i)}
-                    className={`flex w-full items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-base transition-colors ${
+                    className={`flex min-h-11 w-auto items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-left text-base transition-colors xl:w-full ${
                       active ? "bg-teal-soft font-medium text-ink" : "text-muted hover:bg-linen"
                     }`}
                     aria-current={active ? "step" : undefined}
@@ -177,17 +180,13 @@ export function UploadsPage() {
                     <span className="flex min-w-0 items-center gap-2.5">
                       <span
                         className={`grid size-6 shrink-0 place-items-center rounded-full text-sm ${
-                          count
-                            ? "bg-sage text-white"
-                            : active
-                              ? "bg-teal text-white"
-                              : "border border-line-strong"
+                          count || active ? "bg-teal text-white" : "border border-line-strong"
                         }`}
                         aria-hidden="true"
                       >
                         {count ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
                       </span>
-                      <span className="truncate leading-snug">{r.label}</span>
+                      <span className="whitespace-nowrap leading-snug xl:truncate xl:whitespace-normal">{r.label}</span>
                     </span>
                     {count ? <span className="shrink-0 text-sm tabular-nums text-muted">{count}</span> : null}
                   </button>
@@ -195,19 +194,19 @@ export function UploadsPage() {
               );
             })}
           </ol>
-          <p className="mt-3 border-t border-line/70 px-1 pt-3 text-sm text-muted">
+          <p className="mt-3 border-t border-line/70 px-1 pt-3 text-sm text-muted xl:block">
             {completeRooms} of {rooms.length} areas have photos
           </p>
         </Card>
       </nav>
 
-      <div className="mx-auto w-full max-w-2xl space-y-5">
+      <div className="mx-auto w-full min-w-0 max-w-2xl space-y-5">
         <Card className="px-6 py-5">
           <ProgressBar
             value={completeRooms}
             max={rooms.length}
             label={`${completeRooms} of ${rooms.length} areas have photos`}
-            tone={completeRooms ? "sage" : "teal"}
+            tone="teal"
           />
         </Card>
 
@@ -215,8 +214,8 @@ export function UploadsPage() {
           {intro}
         </Alert>
 
-        <Card className="p-6 sm:p-8">
-          <h1 className="text-3xl font-semibold leading-tight">{room.label}</h1>
+        <Card className="p-5 sm:p-8">
+          <h1 className="text-[1.75rem] font-semibold leading-tight sm:text-3xl">{room.label}</h1>
           <p className="mt-1 text-base text-muted">
             Area {index + 1} of {rooms.length} · {files.length} file{files.length === 1 ? "" : "s"} added
           </p>
@@ -342,9 +341,9 @@ export function UploadsPage() {
             </p>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-line/70 pt-6">
+          <div className="mt-7 flex flex-col gap-3 border-t border-line/70 pt-6 sm:flex-row sm:flex-wrap sm:items-center">
             {index > 0 ? (
-              <Button variant="secondary" icon={ArrowLeft} onClick={() => goToRoom(index - 1)}>
+              <Button variant="secondary" icon={ArrowLeft} className="w-full sm:w-auto" onClick={() => goToRoom(index - 1)}>
                 Previous area
               </Button>
             ) : (
@@ -353,11 +352,11 @@ export function UploadsPage() {
               </Link>
             )}
             {index < rooms.length - 1 ? (
-              <Button icon={ArrowRight} onClick={() => goToRoom(index + 1)}>
+              <Button icon={ArrowRight} className="w-full sm:w-auto" onClick={() => goToRoom(index + 1)}>
                 {files.length ? "Next area" : "Skip this area"}
               </Button>
             ) : (
-              <Button icon={ArrowRight} onClick={() => navigate(`/assessment/${id}/review`)}>
+              <Button icon={ArrowRight} className="w-full sm:w-auto" onClick={() => navigate(`/assessment/${id}/review`)}>
                 Review and submit
               </Button>
             )}

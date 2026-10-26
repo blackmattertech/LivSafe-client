@@ -1,36 +1,66 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --font-sans: Inter, system-ui, sans-serif;
 
-  --color-linen: #f5f1e8;
-  --color-paper: #fffdf9;
-  --color-cream: #fbf5ea;
-  --color-ink: #262420;
-  --color-muted: #6a645a;
-  --color-line: #e3dbcc;
-  --color-line-strong: #cfc4b0;
-  --color-teal: #3f6f64;
-  --color-teal-dark: #2f564d;
-  --color-teal-soft: #e6efec;
-  --color-terracotta: #b0532f;
-  --color-terracotta-soft: #f8ebe4;
-  --color-amber: #a8752a;
-  --color-amber-soft: #fbf0dc;
-  --color-sage: #4d7743;
-  --color-sage-soft: #eaf1e6;
+  --color-primary: #1a73e8;
+  --color-primary-hover: #155fc4;
+  --color-primary-pressed: #134e95;
+  --color-primary-light: #e8f1fd;
+  --color-primary-disabled: #b9d0fa;
+  --color-primary-50: #f5f9ff;
 
-  --shadow-card: 0 1px 2px rgb(38 36 32 / 0.04), 0 12px 28px -18px rgb(38 36 32 / 0.22);
-  --shadow-lift: 0 2px 4px rgb(38 36 32 / 0.05), 0 22px 44px -22px rgb(38 36 32 / 0.3);
+  --color-wellness: #8fdfff;
+  --color-wellness-light: #f3fcff;
+  --color-wellness-dark: #6ecff5;
 
-  --animate-rise: rise 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
-  --animate-fade: fade 0.4s ease both;
+  --color-success: #10b981;
+  --color-success-bg: #ecfdf5;
+  --color-warning: #f59e0b;
+  --color-warning-bg: #fffbeb;
+  --color-error: #ef4444;
+  --color-error-hover: #dc2626;
+  --color-error-bg: #fef2f2;
+  --color-info: #0ea5e9;
+  --color-info-bg: #f0f9ff;
+
+  --color-text-primary: #1f2937;
+  --color-text-secondary: #4b5563;
+  --color-text-muted: #6b7280;
+  --color-placeholder: #9ca3af;
+  --color-border: #e5e7eb;
+  --color-background: #f9fafb;
+  --color-surface: #ffffff;
+
+  --color-linen: #f9fafb;
+  --color-paper: #ffffff;
+  --color-cream: #f5f9ff;
+  --color-ink: #1f2937;
+  --color-muted: #6b7280;
+  --color-line: #e5e7eb;
+  --color-line-strong: #d1d5db;
+  --color-teal: #8fdfff;
+  --color-teal-dark: #6ecff5;
+  --color-teal-soft: #f3fcff;
+  --color-terracotta: #ef4444;
+  --color-terracotta-soft: #fef2f2;
+  --color-amber: #f59e0b;
+  --color-amber-soft: #fffbeb;
+  --color-sage: #10b981;
+  --color-sage-soft: #ecfdf5;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.05);
+  --shadow-lift: 0 4px 12px rgb(0 0 0 / 0.08);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.1);
+
+  --animate-rise: rise 0.2s ease both;
+  --animate-fade: fade 0.2s ease both;
 }
 
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(0.75rem);
+    transform: translateY(0.5rem);
   }
   to {
     opacity: 1;
@@ -48,19 +78,18 @@
 }
 
 html {
-  font-size: 18px;
+  font-size: 16px;
   -webkit-text-size-adjust: 100%;
+  overflow-x: clip;
 }
 
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    radial-gradient(1100px 520px at 8% -10%, var(--color-teal-soft) 0%, transparent 60%),
-    radial-gradient(900px 480px at 100% 0%, var(--color-cream) 0%, transparent 55%),
-    var(--color-linen);
-  background-attachment: fixed;
-  color: var(--color-ink);
+  overflow-x: clip;
+  overflow-wrap: break-word;
+  background: var(--color-background);
+  color: var(--color-text-secondary);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
 }
@@ -69,24 +98,172 @@ body {
   min-height: 100dvh;
 }
 
+h1,
+h2,
+h3,
+h4,
+h5 {
+  color: var(--color-text-primary);
+  text-wrap: balance;
+}
+
 :focus-visible {
-  outline: 3px solid var(--color-teal);
+  outline: 3px solid var(--color-primary);
   outline-offset: 3px;
-  border-radius: 0.35rem;
+  border-radius: 8px;
 }
 
 input[type="radio"],
 input[type="checkbox"] {
-  width: 1.35rem;
-  height: 1.35rem;
+  width: 1.25rem;
+  height: 1.25rem;
   accent-color: var(--color-teal);
   flex: none;
 }
 
-a {
-  color: var(--color-teal-dark);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 3px;
+@layer base {
+  a {
+    color: var(--color-primary);
+    text-decoration-thickness: 1px;
+    text-underline-offset: 3px;
+  }
+
+  a.bg-teal,
+  a.bg-teal-dark,
+  a.bg-primary,
+  a.bg-primary-hover,
+  a.text-white {
+    color: #fff;
+  }
+
+  h1,
+  h2 {
+    font-weight: 700;
+  }
+
+  h3,
+  h4,
+  h5 {
+    font-weight: 600;
+  }
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+  height: auto;
+}
+
+img.livsafe-logo {
+  display: block;
+  height: 2.75rem;
+  width: auto;
+  max-width: min(100%, 13rem);
+  max-height: 2.75rem;
+}
+
+@media (min-width: 640px) {
+  img.livsafe-logo {
+    height: 3.25rem;
+    max-height: 3.25rem;
+    max-width: min(100%, 16rem);
+  }
+}
+
+.bg-teal,
+.bg-teal-dark,
+.bg-wellness,
+.bg-wellness-dark,
+.bg-teal.text-white,
+.bg-teal-dark.text-white,
+.bg-wellness.text-white,
+.bg-wellness-dark.text-white {
+  color: #123b70;
+}
+
+.text-teal,
+.text-wellness,
+.text-teal-dark,
+.text-wellness-dark {
+  color: #037698;
+}
+
+img.client-login-logo {
+  display: block;
+  height: 3.25rem;
+  width: auto;
+  max-width: min(100%, 16rem);
+  max-height: none;
+  object-fit: contain;
+}
+
+img.client-login-logo--card {
+  height: 2.5rem;
+  max-width: min(100%, 11.5rem);
+}
+
+@media (min-width: 1024px) {
+  img.client-login-logo {
+    height: 3.75rem;
+    max-width: 16rem;
+  }
+
+  img.client-login-logo--card {
+    height: 2.75rem;
+    max-width: 13rem;
+  }
+}
+
+.login-screen {
+  background-color: #e7f6fc;
+}
+
+.login-photo {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  width: 100%;
+  height: 26rem;
+  object-fit: cover;
+  object-position: center top;
+  pointer-events: none;
+}
+
+@media (min-width: 1024px) {
+  .login-photo {
+    display: none;
+  }
+}
+
+.login-desktop-bg {
+  background-color: #e7f6fc;
+  background-image: url("https://res.cloudinary.com/hoevqlxx/image/upload/v1791644384/97774bd8-ef4e-4834-ab10-741d7afc79f8.webp");
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: cover;
+}
+
+button.login-sign-in {
+  background-color: #14a3c0;
+  color: #fff;
+}
+
+button.login-sign-in:hover {
+  background-color: #0e8eaa;
+  color: #fff;
+}
+
+a.login-support {
+  border: 1px solid #14a3c0;
+  background-color: #fff;
+  color: #0e8eaa;
+}
+
+a.login-support:hover {
+  background-color: #f3fcff;
+  color: #0e8eaa;
 }
 
 @media (prefers-reduced-motion: reduce) {

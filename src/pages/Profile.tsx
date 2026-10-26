@@ -117,7 +117,7 @@ export function ProfilePage() {
 
       <Card>
         <CardHeader icon={Camera} title="Profile photo" subtitle="A clear headshot helps our reviewers recognise you." />
-        <div className="flex flex-wrap items-center gap-5 px-6 py-6">
+        <div className="flex flex-wrap items-center gap-5 px-4 py-5 sm:px-6 sm:py-6">
           <div className="grid size-24 place-items-center overflow-hidden rounded-2xl bg-teal-soft text-3xl font-semibold text-teal-dark">
             {photo ? (
               <img src={photo} alt="" className="size-full object-cover" />
@@ -151,7 +151,7 @@ export function ProfilePage() {
       <form onSubmit={onSubmit}>
         <Card>
           <CardHeader icon={UserRound} title="Contact details" subtitle="Your email stays the same. You can update everything else." />
-          <div className="space-y-5 px-6 py-6">
+          <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-6">
             <Field label="Email">
               <TextInput value={user.email} readOnly disabled />
             </Field>
@@ -171,7 +171,7 @@ export function ProfilePage() {
 
         <Card className="mt-6">
           <CardHeader icon={MapPin} title="Address" subtitle="Where we should associate your account, if you would like it on file." />
-          <div className="space-y-5 px-6 py-6">
+          <div className="space-y-5 px-4 py-5 sm:px-6 sm:py-6">
             <Field label="Street address">
               <TextInput
                 value={addressLine1}
@@ -212,7 +212,7 @@ export function ProfilePage() {
                 Your profile is up to date.
               </Alert>
             ) : null}
-            <Button type="submit" loading={busy} icon={CheckCircle2}>
+            <Button type="submit" loading={busy} icon={CheckCircle2} className="w-full sm:w-auto">
               Save profile
             </Button>
           </div>

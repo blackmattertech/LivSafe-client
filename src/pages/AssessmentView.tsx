@@ -13,7 +13,18 @@ import {
 import { api } from "../api";
 import { MediaGrid, MediaLightbox } from "../components/Media";
 import { Badge, Card, PageLoader, StatusChip } from "../components/ui";
+import { intakePath } from "../lib/intake";
 import type { Assessment, IntakeField, IntakeSection, RoomConfig, Upload } from "../types";
+import type { ClientForm, FileAnswer } from "./CustomForms";
+
+function isFileAnswer(value: unknown): value is FileAnswer {
+  return Boolean(value && typeof value === "object" && "uploadId" in value);
+}
+
+function fileAnswers(value: unknown): FileAnswer[] {
+  if (Array.isArray(value)) return value.filter(isFileAnswer);
+  return isFileAnswer(value) ? [value] : [];
+}
 
 type Tab = "photos" | "answers";
 
@@ -41,7 +52,8 @@ function visibleField(field: IntakeField, data: Record<string, unknown>) {
 }
 
 function nextIncompleteHref(a: Assessment) {
-  if (!a.intakeComplete) return `/assessment/${a.id}/intake`;
+  if (!a.requiresIntake) return "/reports";
+  if (!a.intakeComplete) return intakePath(a);
   if (a.roomsWithUploads === 0) return `/assessment/${a.id}/uploads`;
   return `/assessment/${a.id}/review`;
 }
@@ -63,6 +75,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [rooms, setRooms] = useState<RoomConfig[]>([]);
   const [sections, setSections] = useState<IntakeSection[]>([]);
+  const [customForms, setCustomForms] = useState<ClientForm[]>([]);
   const [tab, setTab] = useState<Tab>(focus === "answers" ? "answers" : "photos");
   const [roomFilter, setRoomFilter] = useState<string>("all");
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -72,10 +85,12 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
       api<{ assessment: Assessment }>(`/api/assessments/${id}`),
       api<{ rooms: RoomConfig[] }>("/api/config/rooms"),
       api<{ sections: IntakeSection[] }>("/api/config/intake"),
-    ]).then(([a, r, s]) => {
+      api<{ forms: ClientForm[] }>(`/api/assessments/${id}/forms`).catch(() => ({ forms: [] })),
+    ]).then(([a, r, s, forms]) => {
       setAssessment(a.assessment);
       setRooms(r.rooms);
       setSections(s.sections);
+      setCustomForms(forms.forms);
     });
   }, [id]);
 
@@ -132,14 +147,30 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
             Submitted {formatDate(assessment.submittedAt)} · Ref {assessment.id.slice(0, 8)}
           </p>
         </div>
-        {assessment.hasReport ? (
-          <a
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-teal px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-teal-dark"
-            href={`/api/assessments/${assessment.id}/report`}
-          >
-            <Download className="size-4" aria-hidden="true" />
-            Download PDF
-          </a>
+        {assessment.hasReport || assessment.hasPackageFile ? (
+          <div className="flex flex-wrap gap-2">
+            {assessment.hasPackageFile ? (
+              <a
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-paper px-4 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream"
+                href={`/api/assessments/${assessment.id}/package-file`}
+                aria-label={
+                  assessment.packageFileName ? `Download ${assessment.packageFileName}` : "Download package file"
+                }
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Download
+              </a>
+            ) : null}
+            {assessment.hasReport ? (
+              <a
+                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover"
+                href={`/api/assessments/${assessment.id}/report`}
+              >
+                <Download className="size-4" aria-hidden="true" />
+                Download PDF
+              </a>
+            ) : null}
+          </div>
         ) : null}
       </div>
 
@@ -291,6 +322,48 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 </section>
               );
             })}
+            {customForms.map((form) =>
+              form.sections.map((section) => {
+                const data = form.answers[section.id] ?? {};
+                return (
+                  <section key={section.id} className="rounded-xl border border-line/80 bg-linen/30 p-3.5">
+                    <div className="mb-2.5">
+                      <p className="text-xs font-medium text-muted">{form.title}</p>
+                      <h2 className="text-sm font-semibold leading-snug">{section.title}</h2>
+                    </div>
+                    <dl className="space-y-2">
+                      {section.fields.map((field) => {
+                        const files = field.type === "image" || field.type === "file" ? fileAnswers(data[field.id]) : [];
+                        const value =
+                          field.type === "boolean"
+                            ? data[field.id] === "yes"
+                              ? "Yes"
+                              : data[field.id] === "no"
+                                ? "No"
+                                : null
+                            : files.length
+                              ? null
+                              : formatValue(data[field.id], field.options);
+                        return (
+                          <div key={field.id}>
+                            <dt className="text-xs leading-snug text-muted">{field.label}</dt>
+                            <dd className={`mt-0.5 text-sm leading-snug ${value || files.length ? "" : "italic text-muted"}`}>
+                              {files.length
+                                ? files.map((file) => (
+                                    <a key={file.uploadId} href={file.url} className="block font-medium">
+                                      {file.name}
+                                    </a>
+                                  ))
+                                : (value ?? "Not answered")}
+                            </dd>
+                          </div>
+                        );
+                      })}
+                    </dl>
+                  </section>
+                );
+              }),
+            )}
           </div>
         )}
       </Card>
@@ -311,7 +384,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
 function Metric({ label, value, hint }: { label: string; value: string | number; hint: string }) {
   return (
     <div className="px-3 py-3 text-center">
-      <p className="text-[11px] font-medium uppercase tracking-wide text-muted">{label}</p>
+      <p className="text-[13px] font-semibold text-muted">{label}</p>
       <p className="mt-0.5 text-lg font-semibold tabular-nums leading-none">{value}</p>
       <p className="mt-1 text-xs text-muted">{hint}</p>
     </div>

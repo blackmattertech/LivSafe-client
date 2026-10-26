@@ -2,10 +2,12 @@ import type {
   ButtonHTMLAttributes,
   InputHTMLAttributes,
   ReactNode,
+  Ref,
   TextareaHTMLAttributes,
 } from "react";
 import type { LucideIcon } from "lucide-react";
 import { AlertTriangle, Check, CheckCircle2, Info, Loader2 } from "lucide-react";
+import { canUseVoice, VoiceChrome } from "./VoiceInput";
 
 type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 
@@ -20,25 +22,25 @@ export function Button({
   ...props
 }: ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
-  size?: "sm" | "md";
+  size?: "sm" | "md" | "lg";
   icon?: LucideIcon;
   loading?: boolean;
 }) {
   const styles: Record<ButtonVariant, string> = {
     primary:
-      "bg-teal text-white shadow-card hover:bg-teal-dark hover:shadow-lift active:translate-y-px",
-    secondary:
-      "bg-paper text-ink border border-line shadow-card hover:border-line-strong hover:bg-cream active:translate-y-px",
-    ghost: "bg-transparent text-teal-dark hover:bg-teal-soft",
-    danger: "bg-terracotta-soft text-terracotta hover:bg-terracotta hover:text-white",
+      "bg-primary text-white shadow-card hover:bg-primary-hover active:bg-primary-pressed disabled:bg-primary-disabled disabled:text-white",
+    secondary: "bg-paper text-ink border border-line-strong hover:bg-linen",
+    ghost: "bg-transparent text-teal hover:bg-teal-soft",
+    danger: "bg-terracotta text-white hover:bg-error-hover",
   };
   const sizes = {
-    sm: "min-h-11 px-4 py-2 text-base",
-    md: "min-h-13 px-6 py-3 text-lg",
+    sm: "min-h-11 px-4 py-2 text-sm",
+    md: "min-h-12 px-5 py-3 text-base",
+    lg: "min-h-14 px-5 py-3.5 text-lg",
   };
   return (
     <button
-      className={`inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none ${styles[variant]} ${sizes[size]} ${className}`}
+      className={`inline-flex max-w-full items-center justify-center gap-2 rounded-lg text-center font-medium whitespace-normal text-pretty transition-colors duration-150 disabled:cursor-not-allowed disabled:shadow-none ${styles[variant]} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
       {...props}
     >
@@ -63,7 +65,7 @@ export function Card({
 }) {
   return (
     <Tag
-      className={`rounded-2xl border border-line bg-paper/90 shadow-card backdrop-blur-sm ${className}`}
+      className={`rounded-xl border border-line bg-paper shadow-card ${className}`}
     >
       {children}
     </Tag>
@@ -84,10 +86,10 @@ export function CardHeader({
   tone?: Tone;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-4 border-b border-line/70 px-6 py-5">
+    <div className="flex flex-col gap-4 border-b border-line/70 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:px-6 sm:py-5">
       <div className="flex items-start gap-3">
         {Icon ? (
-          <span className={`grid size-11 place-items-center rounded-xl ${TONES[tone].soft}`}>
+          <span className={`grid size-11 place-items-center rounded-lg ${TONES[tone].soft}`}>
             <Icon className="size-6" aria-hidden="true" />
           </span>
         ) : null}
@@ -129,9 +131,9 @@ export function StatTile({
   tone?: Tone;
 }) {
   return (
-    <div className="rounded-2xl border border-line bg-paper/90 p-5 shadow-card">
+    <div className="rounded-xl border border-line bg-paper p-6 shadow-card">
       <div className="flex items-center gap-3">
-        <span className={`grid size-10 place-items-center rounded-xl ${TONES[tone].soft}`}>
+        <span className={`grid size-10 place-items-center rounded-lg ${TONES[tone].soft}`}>
           <Icon className="size-5" aria-hidden="true" />
         </span>
         <p className="text-base text-muted">{label}</p>
@@ -148,36 +150,51 @@ export function Field({
   required,
   children,
   as: Tag = "label",
+  density = "default",
 }: {
   label: string;
   hint?: string;
   required?: boolean;
   children: ReactNode;
   as?: "label" | "fieldset";
+  density?: "default" | "comfortable";
 }) {
+  const large = density === "comfortable";
   const heading = (
     <>
-      <span className="block text-lg font-medium leading-snug">
+      <span
+        className={`block text-pretty font-semibold leading-snug text-ink ${
+          large ? "text-lg" : "text-sm"
+        }`}
+      >
         {label}
         {required ? (
-          <span className="ml-1 text-terracotta" aria-hidden="true">
-            *
+          <span className={`ml-1.5 font-medium text-terracotta ${large ? "text-base" : "text-sm"}`}>
+            (required)
           </span>
         ) : null}
       </span>
-      {hint ? <span className="mt-1 block text-base text-muted">{hint}</span> : null}
+      {hint ? (
+        <span
+          className={`mt-1.5 block text-pretty leading-relaxed text-muted ${
+            large ? "text-base" : "text-[13px]"
+          }`}
+        >
+          {hint}
+        </span>
+      ) : null}
     </>
   );
   if (Tag === "fieldset") {
     return (
-      <fieldset className="block space-y-3 border-0 p-0">
-        <legend className="mb-2 p-0">{heading}</legend>
+      <fieldset className={`block border-0 p-0 ${large ? "space-y-3.5" : "space-y-3"}`}>
+        <legend className="mb-2.5 p-0">{heading}</legend>
         {children}
       </fieldset>
     );
   }
   return (
-    <label className="block space-y-2">
+    <label className={`block ${large ? "space-y-2.5" : "space-y-2"}`}>
       {heading}
       {children}
     </label>
@@ -185,14 +202,164 @@ export function Field({
 }
 
 const inputClass =
-  "w-full min-h-13 rounded-xl border border-line bg-paper px-4 py-3 text-ink shadow-inner transition-colors placeholder:text-muted/70 hover:border-line-strong focus:border-teal focus:outline-none focus:ring-4 focus:ring-teal/15";
+  "w-full min-h-12 rounded-lg border border-line-strong bg-paper px-4 py-3 text-base text-ink transition-colors placeholder:text-placeholder hover:border-muted focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15";
 
-export function TextInput({ className = "", ...props }: InputHTMLAttributes<HTMLInputElement>) {
-  return <input className={`${inputClass} ${className}`} {...props} />;
+const inputComfortableClass =
+  "w-full min-h-14 rounded-xl border border-line-strong bg-paper px-4 py-3.5 text-lg leading-normal text-ink transition-colors placeholder:text-placeholder hover:border-muted focus:border-primary focus:outline-none focus:ring-4 focus:ring-primary/15";
+
+export function TextInput({
+  className = "",
+  density = "default",
+  voice,
+  ref,
+  ...props
+}: InputHTMLAttributes<HTMLInputElement> & {
+  density?: "default" | "comfortable";
+  voice?: boolean;
+  ref?: Ref<HTMLInputElement>;
+}) {
+  const fieldClass = `${density === "comfortable" ? inputComfortableClass : inputClass} ${className}`;
+  if (!canUseVoice({ type: props.type, disabled: props.disabled, readOnly: props.readOnly, voice })) {
+    return <input ref={ref} className={fieldClass} {...props} />;
+  }
+  return (
+    <VoiceChrome fieldRef={ref} align="center">
+      {(bind) => (
+        <input
+          {...props}
+          ref={bind.ref}
+          className={`${fieldClass} pr-14`}
+          aria-describedby={[props["aria-describedby"], bind.describedBy].filter(Boolean).join(" ") || undefined}
+        />
+      )}
+    </VoiceChrome>
+  );
 }
 
-export function TextArea({ className = "", ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea className={`${inputClass} min-h-32 leading-relaxed ${className}`} {...props} />;
+export function TextArea({
+  className = "",
+  density = "default",
+  voice,
+  ref,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement> & {
+  density?: "default" | "comfortable";
+  voice?: boolean;
+  ref?: Ref<HTMLTextAreaElement>;
+}) {
+  const fieldClass = `${density === "comfortable" ? inputComfortableClass : inputClass} min-h-36 leading-relaxed ${className}`;
+  if (!canUseVoice({ disabled: props.disabled, readOnly: props.readOnly, voice })) {
+    return <textarea ref={ref} className={fieldClass} {...props} />;
+  }
+  return (
+    <VoiceChrome fieldRef={ref} align="top">
+      {(bind) => (
+        <textarea
+          {...props}
+          ref={bind.ref}
+          className={`${fieldClass} pr-14`}
+          aria-describedby={[props["aria-describedby"], bind.describedBy].filter(Boolean).join(" ") || undefined}
+        />
+      )}
+    </VoiceChrome>
+  );
+}
+
+const PHONE_COUNTRY_CODES = [
+  { code: "+1", label: "+1 USA" },
+  { code: "+1-CA", dial: "+1", label: "+1 Canada" },
+  { code: "+44", label: "+44 UK" },
+  { code: "+91", label: "+91 India" },
+  { code: "+61", label: "+61 Australia" },
+  { code: "+353", label: "+353 Ireland" },
+  { code: "+52", label: "+52 Mexico" },
+  { code: "+49", label: "+49 Germany" },
+  { code: "+33", label: "+33 France" },
+] as const;
+
+export function PhoneInput({
+  countryCode = "+1",
+  number = "",
+  onCountryChange,
+  onNumberChange,
+  required,
+  density = "default",
+  id,
+  voice,
+}: {
+  countryCode?: string;
+  number?: string;
+  onCountryChange: (code: string) => void;
+  onNumberChange: (value: string) => void;
+  required?: boolean;
+  density?: "default" | "comfortable";
+  id?: string;
+  voice?: boolean;
+}) {
+  const large = density === "comfortable";
+  const control = large ? inputComfortableClass : inputClass;
+  const selected = PHONE_COUNTRY_CODES.some((c) => c.code === countryCode) ? countryCode : "+1";
+  const enableVoice = canUseVoice({ type: "tel", voice });
+
+  const numberField = (
+    extraClass = "",
+    bind?: { ref: (node: HTMLInputElement | null) => void; describedBy?: string },
+  ) => (
+    <input
+      ref={bind?.ref}
+      id={id}
+      type="tel"
+      inputMode="tel"
+      autoComplete="tel-national"
+      required={required}
+      placeholder="Phone number"
+      value={number}
+      aria-describedby={bind?.describedBy}
+      onChange={(e) => onNumberChange(e.target.value.replace(/[^\d\s()-]/g, ""))}
+      className={`${control} min-w-0 flex-1 ${extraClass}`}
+    />
+  );
+
+  return (
+    <div className="flex gap-2">
+      <label className="sr-only" htmlFor={id ? `${id}-country` : undefined}>
+        Country code
+      </label>
+      <select
+        id={id ? `${id}-country` : undefined}
+        aria-label="Country code"
+        value={selected}
+        onChange={(e) => onCountryChange(e.target.value)}
+        className={`${control} w-[7.5rem] shrink-0 appearance-none bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat pr-9 sm:w-[8.5rem] ${
+          large ? "text-base" : "text-sm"
+        }`}
+        style={{
+          backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236B7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+        }}
+      >
+        {PHONE_COUNTRY_CODES.map((item) => (
+          <option key={item.code} value={item.code}>
+            {item.label}
+          </option>
+        ))}
+      </select>
+      {enableVoice ? (
+        <div className="min-w-0 flex-1">
+          <VoiceChrome>
+            {(bind) => numberField("pr-14 w-full", bind)}
+          </VoiceChrome>
+        </div>
+      ) : (
+        numberField()
+      )}
+    </div>
+  );
+}
+
+export function phoneDialCode(countryCode: string) {
+  const match = PHONE_COUNTRY_CODES.find((c) => c.code === countryCode);
+  if (!match) return "+1";
+  return "dial" in match && match.dial ? match.dial : match.code;
 }
 
 export function ChoiceCard({
@@ -202,6 +369,8 @@ export function ChoiceCard({
   onChange,
   label,
   required,
+  disabled,
+  density = "default",
 }: {
   type: "radio" | "checkbox";
   name?: string;
@@ -209,10 +378,18 @@ export function ChoiceCard({
   onChange: () => void;
   label: string;
   required?: boolean;
+  disabled?: boolean;
+  density?: "default" | "comfortable";
 }) {
+  const large = density === "comfortable";
+  const markSize = large ? "size-6" : "size-5";
   return (
     <label
-      className={`flex min-h-13 cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 transition-all duration-150 ${
+      className={`flex cursor-pointer items-center rounded-xl border transition-colors duration-150 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-teal/25 ${
+        disabled ? "cursor-not-allowed opacity-70" : ""
+      } ${
+        large ? "min-h-14 gap-3.5 px-4 py-4" : "min-h-12 gap-3 rounded-lg px-4 py-3"
+      } ${
         checked
           ? "border-teal bg-teal-soft shadow-card"
           : "border-line bg-paper hover:border-line-strong hover:bg-cream"
@@ -223,10 +400,29 @@ export function ChoiceCard({
         name={name}
         required={required}
         checked={checked}
+        disabled={disabled}
         onChange={onChange}
-        className="shrink-0"
+        className="sr-only"
       />
-      <span className="leading-snug">{label}</span>
+      <span
+        className={`pointer-events-none grid shrink-0 place-items-center ${markSize} ${
+          type === "radio" ? "rounded-full" : "rounded-md"
+        } ${
+          checked
+            ? "bg-teal text-white"
+            : "border-2 border-line-strong bg-paper"
+        }`}
+        aria-hidden="true"
+      >
+        {checked ? (
+          type === "radio" ? (
+            <span className="size-2 rounded-full bg-white" />
+          ) : (
+            <Check className={large ? "size-4" : "size-3.5"} strokeWidth={3} />
+          )
+        ) : null}
+      </span>
+      <span className={`leading-snug text-pretty ${large ? "text-lg" : "text-base"}`}>{label}</span>
     </label>
   );
 }
@@ -292,7 +488,7 @@ export function Alert({
     sage: "border-sage/30 bg-sage-soft text-ink",
   }[tone];
   return (
-    <div className={`flex gap-3 rounded-2xl border px-5 py-4 ${box}`} role="status">
+    <div className={`flex gap-3 rounded-xl border px-5 py-4 ${box}`} role="status">
       <Icon className={`mt-0.5 size-6 shrink-0 ${TONES[tone].text}`} aria-hidden="true" />
       <div className="space-y-1">
         {title ? <p className="font-semibold">{title}</p> : null}
@@ -306,7 +502,7 @@ export function ErrorText({ children }: { children: ReactNode }) {
   if (!children) return null;
   return (
     <p
-      className="flex items-start gap-3 rounded-xl border border-terracotta/30 bg-terracotta-soft px-4 py-3 text-terracotta"
+      className="flex items-start gap-3 rounded-lg border border-terracotta/30 bg-terracotta-soft px-4 py-3 text-terracotta"
       role="alert"
     >
       <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
@@ -352,7 +548,7 @@ export function ProgressBar({
 
 export function StepDots({ total, current }: { total: number; current: number }) {
   return (
-    <div className="flex items-center gap-1.5" aria-hidden="true">
+    <div className="flex max-w-full flex-wrap items-center justify-end gap-1.5" aria-hidden="true">
       {Array.from({ length: total }, (_, i) => (
         <span
           key={i}
@@ -396,7 +592,7 @@ export function EmptyState({
 }) {
   return (
     <Card className="px-6 py-14 text-center">
-      <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-teal-soft text-teal-dark">
+        <span className="mx-auto grid size-16 place-items-center rounded-xl bg-teal-soft text-teal-dark">
         <Icon className="size-8" aria-hidden="true" />
       </span>
       <h2 className="mt-5 text-2xl font-semibold">{title}</h2>
@@ -437,12 +633,12 @@ export function PageHeading({
     <div className="flex flex-wrap items-end justify-between gap-5">
       <div className="max-w-2xl">
         {eyebrow ? (
-          <p className="flex items-center gap-2 text-base font-medium uppercase tracking-wide text-teal">
+          <p className="flex items-center gap-2 text-sm font-semibold text-teal">
             {Icon ? <Icon className="size-5" aria-hidden="true" /> : null}
             {eyebrow}
           </p>
         ) : null}
-        <h1 className="mt-2 text-4xl font-semibold leading-tight">{title}</h1>
+        <h1 className="mt-2 text-[1.75rem] font-semibold leading-tight sm:text-3xl md:text-4xl">{title}</h1>
         {description ? <p className="mt-3 text-lg leading-relaxed text-muted">{description}</p> : null}
       </div>
       {children}

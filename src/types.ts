@@ -26,6 +26,11 @@ export type Assessment = {
   completedAt: string | null;
   createdAt: string;
   hasReport: boolean;
+  hasPackageFile: boolean;
+  packageFileName: string | null;
+  requiresIntake: boolean;
+  intakeFormId: string | null;
+  intakeFormTitle: string | null;
   intakeComplete: boolean;
   roomsWithUploads: number;
   totalRooms: number;
