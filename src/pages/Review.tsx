@@ -25,6 +25,7 @@ import {
   PageLoader,
   StatTile,
 } from "../components/ui";
+import { intakePath } from "../lib/intake";
 import type { Assessment, IntakeSection, NotificationItem, RoomConfig } from "../types";
 
 export function ReviewPage() {
@@ -50,6 +51,8 @@ export function ReviewPage() {
   }, [id]);
 
   if (!assessment) return <PageLoader label="Loading your summary" />;
+  if (!assessment.requiresIntake) return <Navigate to="/reports" replace />;
+  if (!assessment.intakeComplete) return <Navigate to={intakePath(assessment)} replace />;
   if (assessment.submittedAt) return <Navigate to={`/assessment/${id}/submitted`} replace />;
 
   const requested = new Set(assessment.requestedRooms ?? []);

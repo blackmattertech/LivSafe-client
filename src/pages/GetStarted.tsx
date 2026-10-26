@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   ArrowRight,
   Camera,
@@ -13,7 +13,7 @@ import {
   Stethoscope,
   Timer,
 } from "lucide-react";
-import { api, ApiError } from "../api";
+import { api, ApiError, track, websiteUrl } from "../api";
 import { Button, Card, ErrorText, Field, TextInput } from "../components/ui";
 
 const STEPS = [
@@ -47,11 +47,17 @@ export function GetStartedPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [cfg, setCfg] = useState({ stripeEnabled: false, devPayments: true });
-  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  const rawService = params.get("service");
+  const service = rawService?.trim() || undefined;
 
   useEffect(() => {
     void api<{ stripeEnabled: boolean; devPayments: boolean }>("/api/config/public").then(setCfg);
   }, []);
+
+  useEffect(() => {
+    track("checkout_start", service);
+  }, [service]);
 
   async function succeed() {
     setBusy(true);
@@ -61,7 +67,9 @@ export function GetStartedPage() {
         method: "POST",
         body: JSON.stringify({ email, name }),
       });
-      navigate(`/checkout/success?session_id=${data.sessionId}`);
+      window.location.assign(
+        `${websiteUrl}/checkout/success/?session_id=${encodeURIComponent(data.sessionId)}`,
+      );
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Payment could not be simulated");
     } finally {
@@ -88,7 +96,7 @@ export function GetStartedPage() {
     try {
       const data = await api<{ url: string }>("/api/checkout/session", {
         method: "POST",
-        body: JSON.stringify({ email, name }),
+        body: JSON.stringify({ email, name, service }),
       });
       window.location.href = data.url;
     } catch (err) {
@@ -105,12 +113,12 @@ export function GetStartedPage() {
             <Sparkles className="size-5" aria-hidden="true" />
             Home safety assessment
           </span>
-          <h1 className="text-5xl font-semibold leading-[1.1] tracking-tight">
+          <h1 className="text-[2rem] font-semibold leading-[1.1] tracking-tight sm:text-4xl lg:text-5xl">
             A safer home,
             <br />
             reviewed by <span className="text-teal">real experts</span>.
           </h1>
-          <p className="max-w-xl text-xl leading-relaxed text-muted">
+          <p className="max-w-xl text-lg leading-relaxed text-muted sm:text-xl">
             A one-time payment opens a private portal. Answer a short intake, upload photos of the home, and
             LivSafe prepares a written report of what to change and why — no visit required.
           </p>
@@ -127,9 +135,9 @@ export function GetStartedPage() {
           </ul>
         </div>
 
-        <Card className="p-6 sm:p-7">
-          <div className="flex items-center gap-3">
-            <span className="grid size-11 place-items-center rounded-xl bg-teal text-white">
+        <Card className="p-5 sm:p-7">
+          <div className="flex items-start gap-3">
+            <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-teal text-white">
               <ShieldCheck className="size-6" aria-hidden="true" />
             </span>
             <div>
@@ -209,7 +217,7 @@ export function GetStartedPage() {
       </section>
 
       <section className="space-y-5">
-        <h2 className="text-3xl font-semibold">How it works</h2>
+        <h2 className="text-2xl font-semibold sm:text-3xl">How it works</h2>
         <ol className="grid gap-4 md:grid-cols-3">
           {STEPS.map((step, i) => (
             <Card as="li" key={step.title} className="p-6">

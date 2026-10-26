@@ -49,3 +49,15 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   }
   return data as T;
 }
+
+export const websiteUrl = (import.meta.env.VITE_WEBSITE_URL ?? "http://localhost:5175").replace(/\/$/, "");
+
+export type ServiceId = "diy" | "personalized";
+
+export function track(name: "checkout_start" | "checkout_cancel", service?: ServiceId) {
+  void fetch(`${base}/api/analytics/events`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name, path: window.location.pathname, service }),
+  }).catch(() => undefined);
+}
