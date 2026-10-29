@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Camera, CheckCircle2, MapPin, Trash2, UserRound } from "lucide-react";
-import { api, ApiError } from "../api";
+import { api, ApiError, mediaUrl } from "../api";
 import { useAuth } from "../auth";
 import { Alert, Button, Card, CardHeader, ErrorText, Field, PageHeading, TextInput } from "../components/ui";
 import type { User } from "../types";
@@ -11,7 +11,7 @@ function initials(user: User) {
 }
 
 function avatarSrc(user: User) {
-  return user.avatarUrl ? `${user.avatarUrl}?v=${encodeURIComponent(user.updatedAt)}` : null;
+  return user.avatarUrl ? `${mediaUrl(user.avatarUrl)}?v=${encodeURIComponent(user.updatedAt)}` : null;
 }
 
 export function ProfilePage() {

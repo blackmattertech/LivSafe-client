@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { mediaUrl } from "../api";
 import { useAuth } from "../auth";
 import { HOME_NAV } from "../lib/homeNav";
 import { Bell } from "./Bell";
@@ -141,7 +142,7 @@ function ProfileMenu() {
         {user.avatarUrl ? (
           <span className="block size-11 shrink-0 overflow-hidden rounded-full">
             <img
-              src={`${user.avatarUrl}?v=${encodeURIComponent(user.updatedAt)}`}
+              src={`${mediaUrl(user.avatarUrl)}?v=${encodeURIComponent(user.updatedAt)}`}
               alt=""
               width={44}
               height={44}

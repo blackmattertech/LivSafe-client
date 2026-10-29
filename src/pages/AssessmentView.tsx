@@ -10,10 +10,12 @@ import {
   Hourglass,
   Mail,
 } from "lucide-react";
-import { api } from "../api";
+import { api, fetchAuthenticatedBlob, mediaUrl } from "../api";
+import { DownloadLink } from "../components/DownloadLink";
 import { MediaGrid, MediaLightbox } from "../components/Media";
 import { Badge, Card, PageLoader, StatusChip } from "../components/ui";
 import { intakePath } from "../lib/intake";
+import { roomsForAssessment, roomsWithUploads } from "../lib/rooms";
 import type { Assessment, IntakeField, IntakeSection, RoomConfig, Upload } from "../types";
 import type { ClientForm, FileAnswer } from "./CustomForms";
 
@@ -94,15 +96,20 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
     });
   }, [id]);
 
+  const areaRooms = useMemo(
+    () => roomsWithUploads(roomsForAssessment(assessment, rooms), assessment?.uploads ?? []),
+    [assessment, rooms],
+  );
+
   const grouped = useMemo(
     () =>
-      rooms
+      areaRooms
         .map((room) => ({
           room,
           files: assessment?.uploads.filter((u) => u.roomCategory === room.id) ?? [],
         }))
         .filter((g) => g.files.length > 0),
-    [assessment, rooms],
+    [assessment, areaRooms],
   );
 
   const visibleFiles = useMemo(() => {
@@ -150,25 +157,35 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
         {assessment.hasReport || assessment.hasPackageFile ? (
           <div className="flex flex-wrap gap-2">
             {assessment.hasPackageFile ? (
-              <a
+              <DownloadLink
                 className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-paper px-4 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream"
-                href={`/api/assessments/${assessment.id}/package-file`}
-                aria-label={
+                path={`/api/assessments/${assessment.id}/package-file`}
+                label={
                   assessment.packageFileName ? `Download ${assessment.packageFileName}` : "Download package file"
                 }
               >
                 <Download className="size-4" aria-hidden="true" />
                 Download
-              </a>
+              </DownloadLink>
             ) : null}
             {assessment.hasReport ? (
-              <a
-                className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover"
-                href={`/api/assessments/${assessment.id}/report`}
-              >
-                <Download className="size-4" aria-hidden="true" />
-                Download PDF
-              </a>
+              <>
+                <Link
+                  to={`/assessment/${assessment.id}/report`}
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover"
+                >
+                  <FileText className="size-4" aria-hidden="true" />
+                  View report
+                </Link>
+                <DownloadLink
+                  className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-paper px-4 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream"
+                  path={`/api/assessments/${assessment.id}/report`}
+                  label="Download PDF"
+                >
+                  <Download className="size-4" aria-hidden="true" />
+                  Download PDF
+                </DownloadLink>
+              </>
             ) : null}
           </div>
         ) : null}
@@ -262,7 +279,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 <MediaGrid
                   compact
                   files={visibleFiles}
-                  rooms={rooms}
+                  rooms={areaRooms}
                   onOpen={(i) => {
                     const file = visibleFiles[i];
                     if (file) openFile(file);
@@ -274,13 +291,13 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 </p>
               )}
 
-              {rooms.length > grouped.length ? (
+              {areaRooms.length > grouped.length ? (
                 <details className="mt-4 text-sm text-muted">
                   <summary className="cursor-pointer">
-                    Areas without photos ({rooms.length - grouped.length})
+                    Areas without photos ({areaRooms.length - grouped.length})
                   </summary>
                   <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {rooms
+                    {areaRooms
                       .filter((room) => !grouped.some((g) => g.room.id === room.id))
                       .map((room) => (
                         <li key={room.id}>
@@ -350,7 +367,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                             <dd className={`mt-0.5 text-sm leading-snug ${value || files.length ? "" : "italic text-muted"}`}>
                               {files.length
                                 ? files.map((file) => (
-                                    <a key={file.uploadId} href={file.url} className="block font-medium">
+                                    <a key={file.uploadId} href={mediaUrl(file.url)} className="block font-medium">
                                       {file.name}
                                     </a>
                                   ))
@@ -371,7 +388,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
       {lightbox !== null ? (
         <MediaLightbox
           files={visibleFiles}
-          rooms={rooms}
+          rooms={areaRooms}
           index={lightbox}
           onClose={() => setLightbox(null)}
           onIndex={setLightbox}
@@ -422,5 +439,88 @@ export function SubmittedPage() {
 }
 
 export function ReportPage() {
-  return <AssessmentViewPage focus="photos" />;
+  const { id } = useParams();
+  const [assessment, setAssessment] = useState<Assessment | null>(null);
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let objectUrl = "";
+    let cancelled = false;
+    void api<{ assessment: Assessment }>(`/api/assessments/${id}`)
+      .then(async (data) => {
+        if (cancelled) return;
+        setAssessment(data.assessment);
+        if (!data.assessment.hasReport) return;
+        objectUrl = await fetchAuthenticatedBlob(`/api/assessments/${id}/report`);
+        if (cancelled) {
+          URL.revokeObjectURL(objectUrl);
+          return;
+        }
+        setPdfUrl(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Could not load that report");
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [id]);
+
+  if (error) {
+    return (
+      <p className="text-sm text-amber" role="alert">
+        {error}
+      </p>
+    );
+  }
+  if (!assessment) return <PageLoader label="Loading your report" />;
+  if (!assessment.hasReport) {
+    return (
+      <div className="space-y-3">
+        <Link to="/dashboard" className="inline-flex min-h-11 items-center gap-1 text-sm text-muted no-underline hover:text-teal-dark">
+          <ChevronLeft className="size-4" aria-hidden="true" />
+          Dashboard
+        </Link>
+        <h1 className="text-xl font-semibold">Your report is not ready yet</h1>
+        <p className="max-w-xl text-muted">LivSafe will email you when the written report is available in this portal.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <Link
+            to="/dashboard"
+            className="inline-flex min-h-11 items-center gap-1 text-sm text-muted no-underline hover:text-teal-dark"
+          >
+            <ChevronLeft className="size-4" aria-hidden="true" />
+            Dashboard
+          </Link>
+          <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Your LivSafe report</h1>
+          <p className="mt-1 text-sm text-muted">Read it here, or download a copy to print.</p>
+        </div>
+        <DownloadLink
+          className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover"
+          path={`/api/assessments/${assessment.id}/report`}
+          label="Download PDF"
+        >
+          <Download className="size-4" aria-hidden="true" />
+          Download PDF
+        </DownloadLink>
+      </div>
+      {pdfUrl ? (
+        <iframe
+          title="LivSafe report"
+          src={pdfUrl}
+          className="min-h-[70vh] w-full rounded-xl border border-line bg-paper"
+        />
+      ) : (
+        <PageLoader label="Opening your report" />
+      )}
+    </div>
+  );
 }

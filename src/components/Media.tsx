@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { ChevronLeft, ChevronRight, Images, Play, X } from "lucide-react";
+import { mediaUrl } from "../api";
 import type { RoomConfig, Upload } from "../types";
 
 function roomLabel(rooms: RoomConfig[], id: string) {
@@ -59,7 +60,7 @@ export function PhotoMosaic({
           >
             {file.fileType === "video" ? (
               <>
-                <video className="absolute inset-0 h-full w-full object-cover" src={file.url} muted playsInline />
+                <video className="absolute inset-0 h-full w-full object-cover" src={mediaUrl(file.url)} muted playsInline />
                 <span className="absolute inset-0 grid place-items-center bg-ink/25">
                   <span className="grid size-12 place-items-center rounded-full bg-paper/95 text-teal shadow-lift">
                     <Play className="size-6 fill-current" aria-hidden="true" />
@@ -68,7 +69,7 @@ export function PhotoMosaic({
               </>
             ) : (
               <img
-                src={file.url}
+                src={mediaUrl(file.url)}
                 alt=""
                 className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.04]"
               />
@@ -130,7 +131,7 @@ export function MediaGrid({
             <span className="relative block aspect-square overflow-hidden">
               {file.fileType === "video" ? (
                 <>
-                  <video className="h-full w-full object-cover" src={file.url} muted playsInline />
+                  <video className="h-full w-full object-cover" src={mediaUrl(file.url)} muted playsInline />
                   <span className="absolute inset-0 grid place-items-center bg-ink/20">
                     <span
                       className={`grid place-items-center rounded-full bg-paper/95 text-teal shadow-card ${
@@ -143,7 +144,7 @@ export function MediaGrid({
                 </>
               ) : (
                 <img
-                  src={file.url}
+                  src={mediaUrl(file.url)}
                   alt={file.originalName || roomLabel(rooms, file.roomCategory)}
                   loading="lazy"
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
@@ -258,11 +259,11 @@ export function MediaLightbox({
         </button>
         <div className="grid min-h-0 flex-1 place-items-center">
           {file.fileType === "video" ? (
-            <video className="max-h-[min(72vh,52rem)] max-w-full rounded-2xl shadow-lift" controls src={file.url} />
+            <video className="max-h-[min(72vh,52rem)] max-w-full rounded-2xl shadow-lift" controls src={mediaUrl(file.url)} />
           ) : (
             <img
               className="max-h-[min(72vh,52rem)] max-w-full rounded-2xl object-contain shadow-lift"
-              src={file.url}
+              src={mediaUrl(file.url)}
               alt={file.originalName || room}
             />
           )}
@@ -300,9 +301,9 @@ export function MediaLightbox({
               }`}
             >
               {thumb.fileType === "video" ? (
-                <video className="h-full w-full object-cover" src={thumb.url} muted playsInline />
+                <video className="h-full w-full object-cover" src={mediaUrl(thumb.url)} muted playsInline />
               ) : (
-                <img className="h-full w-full object-cover" src={thumb.url} alt="" />
+                <img className="h-full w-full object-cover" src={mediaUrl(thumb.url)} alt="" />
               )}
             </button>
           ))}

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { ArrowLeft, ArrowRight, Check, ClipboardList, Paperclip, Save } from "lucide-react";
-import { ApiError, api } from "../api";
+import { ApiError, api, mediaUrl } from "../api";
 import { Button, Card, ChoiceCard, Field, PageLoader, TextArea, TextInput } from "../components/ui";
 
 export type FieldType =
@@ -186,7 +186,7 @@ export function FormFillPage() {
   }
 
   async function uploadFile(field: FormField, file: File | undefined) {
-    if (!file || !form) return;
+    if (!file || !form) return false;
     setUploading(field.id);
     setError("");
     try {
@@ -205,8 +205,10 @@ export function FormFillPage() {
           [field.id]: [...fileList(current[field.id]), result.file],
         }));
       }
+      return true;
     } catch (err) {
       setError(err instanceof ApiError ? err.message : "Could not upload that file");
+      return false;
     } finally {
       setUploading(null);
     }
@@ -305,7 +307,7 @@ export function FormFillPage() {
               disabled={!editable || uploading === field.id}
               uploading={uploading === field.id}
               onChange={(value) => setField(field.id, value)}
-              onFile={(file) => void uploadFile(field, file)}
+              onFile={(file) => uploadFile(field, file)}
             />
           ))}
           <div className="flex flex-wrap items-center gap-3 border-t border-line/70 pt-6">
@@ -343,7 +345,7 @@ function Question({
   disabled: boolean;
   uploading: boolean;
   onChange: (value: unknown) => void;
-  onFile: (file: File | undefined) => void;
+  onFile: (file: File | undefined) => Promise<boolean>;
 }) {
   const group = field.type === "radio" || field.type === "multi" || field.type === "boolean";
   return (
@@ -439,6 +441,82 @@ function Question({
   );
 }
 
+function useObjectUrl(file: File | null) {
+  const [url, setUrl] = useState("");
+
+  useEffect(() => {
+    if (!file) {
+      setUrl("");
+      return;
+    }
+    const next = URL.createObjectURL(file);
+    setUrl(next);
+    return () => URL.revokeObjectURL(next);
+  }, [file]);
+
+  return url;
+}
+
+function usePreviewSrc(path: string) {
+  const [src, setSrc] = useState("");
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (!path) {
+      setSrc("");
+      setFailed(false);
+      return;
+    }
+    if (path.startsWith("blob:") || path.startsWith("data:")) {
+      setSrc(path);
+      setFailed(false);
+      return;
+    }
+
+    const absolute = mediaUrl(path);
+    let objectUrl = "";
+    let cancelled = false;
+    const controller = new AbortController();
+    setFailed(false);
+    fetch(absolute, { credentials: "include", signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error("preview");
+        return res.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setSrc(objectUrl);
+      })
+      .catch((err: unknown) => {
+        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) return;
+        setSrc("");
+        setFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [path]);
+
+  return { src, failed };
+}
+
+function FormImagePreview({ path }: { path: string }) {
+  const { src, failed } = usePreviewSrc(path);
+  return (
+    <div className="grid min-h-48 place-items-center bg-linen">
+      {src ? (
+        <img src={src} alt="" className="max-h-72 w-full object-contain" />
+      ) : (
+        <span className="px-4 text-base text-muted">{failed ? "Preview isn’t available." : "Loading preview…"}</span>
+      )}
+    </div>
+  );
+}
+
 function FileField({
   field,
   value,
@@ -452,38 +530,66 @@ function FileField({
   disabled: boolean;
   uploading: boolean;
   onChange: (value: unknown) => void;
-  onFile: (file: File | undefined) => void;
+  onFile: (file: File | undefined) => Promise<boolean>;
 }) {
   const files = field.type === "image" ? (isFileAnswer(value) ? [value] : []) : fileList(value);
+  const image = field.type === "image" && isFileAnswer(value) ? value : null;
+  const [localFile, setLocalFile] = useState<File | null>(null);
+  const localPreview = useObjectUrl(localFile);
+
+  async function pick(file: File | undefined) {
+    if (!file) return;
+    if (field.type === "image") setLocalFile(file);
+    const ok = await onFile(file);
+    if (!ok && field.type === "image") setLocalFile(null);
+  }
+
+  function removeImage() {
+    setLocalFile(null);
+    onChange(null);
+  }
+
+  const previewPath = localPreview || image?.url || "";
+
   return (
     <div className="space-y-3">
-      {files.map((file) => (
-        <div key={file.uploadId} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-linen/50 px-3 py-2">
-          <div className="flex min-w-0 items-center gap-3">
-            {field.type === "image" && file.url ? (
-              <img src={file.url} alt="" className="size-14 rounded-lg object-cover" />
-            ) : (
-              <Paperclip className="size-5 shrink-0 text-teal" aria-hidden="true" />
+      {field.type === "image" && (image || localPreview) ? (
+        <div className="overflow-hidden rounded-xl border border-line bg-white">
+          {previewPath ? <FormImagePreview path={previewPath} /> : null}
+          <div className="flex items-center justify-between gap-3 border-t border-line px-3 py-2">
+            <span className="min-w-0 truncate text-base font-medium">{image?.name ?? "Uploading…"}</span>
+            {disabled ? null : (
+              <button
+                type="button"
+                className="min-h-11 shrink-0 px-2 text-sm font-medium text-terracotta"
+                onClick={removeImage}
+              >
+                Remove
+              </button>
             )}
-            <a href={file.url} className="truncate text-base font-medium" target="_blank" rel="noreferrer">
-              {file.name}
-            </a>
           </div>
-          {disabled ? null : (
-            <button
-              type="button"
-              className="min-h-11 shrink-0 px-2 text-sm font-medium text-terracotta"
-              onClick={() =>
-                onChange(
-                  field.type === "image" ? null : files.filter((item) => item.uploadId !== file.uploadId),
-                )
-              }
-            >
-              Remove
-            </button>
-          )}
         </div>
-      ))}
+      ) : (
+        files.map((file) => (
+          <div key={file.uploadId} className="flex items-center justify-between gap-3 rounded-xl border border-line bg-linen/50 px-3 py-2">
+            <div className="flex min-w-0 items-center gap-3">
+              <Paperclip className="size-5 shrink-0 text-teal" aria-hidden="true" />
+              <a href={mediaUrl(file.url)} className="truncate text-base font-medium" target="_blank" rel="noreferrer">
+                {file.name}
+              </a>
+            </div>
+            {disabled ? null : (
+              <button
+                type="button"
+                className="min-h-11 shrink-0 px-2 text-sm font-medium text-terracotta"
+                onClick={() => onChange(files.filter((item) => item.uploadId !== file.uploadId))}
+              >
+                Remove
+              </button>
+            )}
+          </div>
+        ))
+      )}
       {disabled ? null : (
         <label className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 text-base font-medium text-ink hover:bg-linen">
           <Paperclip className="size-4" aria-hidden="true" />
@@ -494,7 +600,7 @@ function FileField({
             accept={field.type === "image" ? "image/jpeg,image/png,image/webp,image/gif" : undefined}
             disabled={uploading}
             onChange={(event) => {
-              onFile(event.target.files?.[0]);
+              void pick(event.target.files?.[0]);
               event.target.value = "";
             }}
           />
