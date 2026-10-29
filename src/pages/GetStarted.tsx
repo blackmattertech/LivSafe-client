@@ -13,8 +13,12 @@ import {
   Stethoscope,
   Timer,
 } from "lucide-react";
-import { api, ApiError, track, websiteUrl } from "../api";
+import { api, ApiError, track, websiteUrl, type ServiceId } from "../api";
 import { Button, Card, ErrorText, Field, TextInput } from "../components/ui";
+
+function isServiceId(value: string | undefined): value is ServiceId {
+  return value === "diy" || value === "personalized";
+}
 
 const STEPS = [
   {
@@ -48,8 +52,8 @@ export function GetStartedPage() {
   const [busy, setBusy] = useState(false);
   const [cfg, setCfg] = useState({ stripeEnabled: false, devPayments: true });
   const [params] = useSearchParams();
-  const rawService = params.get("service");
-  const service = rawService?.trim() || undefined;
+  const rawService = params.get("service")?.trim();
+  const service = isServiceId(rawService) ? rawService : undefined;
 
   useEffect(() => {
     void api<{ stripeEnabled: boolean; devPayments: boolean }>("/api/config/public").then(setCfg);
