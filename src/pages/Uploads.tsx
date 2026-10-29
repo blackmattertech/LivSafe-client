@@ -12,9 +12,10 @@ import {
   Loader2,
   Trash2,
 } from "lucide-react";
-import { api } from "../api";
+import { api, mediaUrl } from "../api";
 import { Alert, Button, Card, Field, PageLoader, ProgressBar, TextArea } from "../components/ui";
 import { intakePath } from "../lib/intake";
+import { roomsForAssessment } from "../lib/rooms";
 import type { Assessment, RoomConfig, Upload } from "../types";
 
 export function UploadsPage() {
@@ -46,9 +47,7 @@ export function UploadsPage() {
 
   const rooms = useMemo(() => {
     if (!assessment || !assessment.requiresIntake) return [];
-    const requested = new Set(assessment.requestedRooms ?? []);
-    if (!requested.size) return assessment.intakeFormId ? allRooms : [];
-    return allRooms.filter((room) => requested.has(room.id));
+    return roomsForAssessment(assessment, allRooms);
   }, [allRooms, assessment]);
 
   useEffect(() => {
@@ -146,10 +145,16 @@ export function UploadsPage() {
   if (!rooms.length) {
     return (
       <div className="mx-auto max-w-2xl space-y-5">
-        <Alert tone="amber" title="Choose areas to review first">
-          Photos and videos are only collected for the areas you selected in intake.{" "}
-          <Link to={`/assessment/${id}/intake`}>Go back and choose which areas LivSafe should review</Link>.
-        </Alert>
+        {assessment.photoAreas ? (
+          <Alert tone="amber" title="No photo areas on this assessment">
+            This form does not ask for photos. You can continue when the rest of the assessment is ready.
+          </Alert>
+        ) : (
+          <Alert tone="amber" title="Choose areas to review first">
+            Photos and videos are only collected for the areas you selected in intake.{" "}
+            <Link to={`/assessment/${id}/intake`}>Go back and choose which areas LivSafe should review</Link>.
+          </Alert>
+        )}
       </div>
     );
   }
@@ -312,11 +317,11 @@ export function UploadsPage() {
                   className="group relative overflow-hidden rounded-xl border border-line bg-linen"
                 >
                   {file.fileType === "video" ? (
-                    <video className="aspect-square w-full object-cover" controls src={file.url} />
+                    <video className="aspect-square w-full object-cover" controls src={mediaUrl(file.url)} />
                   ) : (
                     <img
                       className="aspect-square w-full object-cover"
-                      src={file.url}
+                      src={mediaUrl(file.url)}
                       alt={file.originalName || room.label}
                     />
                   )}

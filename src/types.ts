@@ -32,6 +32,7 @@ export type Assessment = {
   intakeFormId: string | null;
   intakeFormTitle: string | null;
   intakeComplete: boolean;
+  photoAreas: RoomConfig[] | null;
   roomsWithUploads: number;
   totalRooms: number;
   requestedRooms: string[];

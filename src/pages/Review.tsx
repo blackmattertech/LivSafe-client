@@ -26,6 +26,7 @@ import {
   StatTile,
 } from "../components/ui";
 import { intakePath } from "../lib/intake";
+import { roomsForAssessment } from "../lib/rooms";
 import type { Assessment, IntakeSection, NotificationItem, RoomConfig } from "../types";
 
 export function ReviewPage() {
@@ -55,8 +56,7 @@ export function ReviewPage() {
   if (!assessment.intakeComplete) return <Navigate to={intakePath(assessment)} replace />;
   if (assessment.submittedAt) return <Navigate to={`/assessment/${id}/submitted`} replace />;
 
-  const requested = new Set(assessment.requestedRooms ?? []);
-  const rooms = requested.size ? allRooms.filter((room) => requested.has(room.id)) : [];
+  const rooms = roomsForAssessment(assessment, allRooms);
   const uploaded = new Set(assessment.uploads.map((u) => u.roomCategory));
   const photographed = rooms.filter((room) => uploaded.has(room.id)).length;
   const missing = rooms.filter((room) => !uploaded.has(room.id));

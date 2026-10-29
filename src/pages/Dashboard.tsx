@@ -19,7 +19,8 @@ import {
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { api } from "../api";
+import { api, mediaUrl } from "../api";
+import { DownloadLink } from "../components/DownloadLink";
 import { Card, PageLoader, StatusChip } from "../components/ui";
 import { intakePath } from "../lib/intake";
 import type { Assessment } from "../types";
@@ -46,11 +47,9 @@ function stepState(a: Assessment) {
 
 function nextAction(a: Assessment): { href: string; label: string } {
   if (!a.requiresIntake) {
-    if (a.hasReport) return { href: `/api/assessments/${a.id}/report`, label: "Download report" };
-    if (a.hasPackageFile) return { href: `/api/assessments/${a.id}/package-file`, label: "Download report" };
     return { href: "/reports", label: "View report" };
   }
-  if (a.hasReport) return { href: `/assessment/${a.id}/submitted`, label: "View" };
+  if (a.hasReport) return { href: `/assessment/${a.id}/report`, label: "View report" };
   if (a.submittedAt) return { href: `/assessment/${a.id}/submitted`, label: "Open" };
   if (!a.intakeComplete) return { href: intakePath(a), label: "Continue intake" };
   if (a.roomsWithUploads === 0) return { href: `/assessment/${a.id}/uploads`, label: "Add photos" };
@@ -504,14 +503,14 @@ function AssessmentsBoard({
                           <span key={file.id} className="relative min-h-0 overflow-hidden bg-linen">
                             {file.fileType === "video" ? (
                               <>
-                                <video className="absolute inset-0 h-full w-full object-cover" src={file.url} muted playsInline />
+                                <video className="absolute inset-0 h-full w-full object-cover" src={mediaUrl(file.url)} muted playsInline />
                                 <span className="absolute inset-0 grid place-items-center bg-ink/25">
                                   <Play className="size-3.5 text-white" aria-hidden="true" />
                                 </span>
                               </>
                             ) : (
                               <img
-                                src={file.url}
+                                src={mediaUrl(file.url)}
                                 alt=""
                                 className="absolute inset-0 h-full w-full object-cover"
                                 loading="lazy"
@@ -547,23 +546,24 @@ function AssessmentsBoard({
                           {a.requiresIntake ? (
                             <>
                               {a.hasPackageFile ? (
-                                <a
-                                  href={`/api/assessments/${a.id}/package-file`}
+                                <DownloadLink
+                                  path={`/api/assessments/${a.id}/package-file`}
                                   className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
-                                  aria-label={a.packageFileName ? `Download ${a.packageFileName}` : "Download package file"}
+                                  label={a.packageFileName ? `Download ${a.packageFileName}` : "Download package file"}
                                 >
                                   <Download className="size-3.5" aria-hidden="true" />
                                   Download
-                                </a>
+                                </DownloadLink>
                               ) : null}
                               {a.hasReport ? (
-                                <a
-                                  href={`/api/assessments/${a.id}/report`}
+                                <DownloadLink
+                                  path={`/api/assessments/${a.id}/report`}
                                   className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
+                                  label="Download PDF"
                                 >
                                   <Download className="size-3.5" aria-hidden="true" />
                                   PDF
-                                </a>
+                                </DownloadLink>
                               ) : null}
                               <Link
                                 to={action.href}
@@ -576,29 +576,28 @@ function AssessmentsBoard({
                           ) : a.hasReport || a.hasPackageFile ? (
                             <>
                               {a.hasPackageFile ? (
-                                <a
-                                  href={`/api/assessments/${a.id}/package-file`}
+                                <DownloadLink
+                                  path={`/api/assessments/${a.id}/package-file`}
                                   className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover sm:h-9 sm:flex-none"
-                                  aria-label={
-                                    a.packageFileName ? `Download ${a.packageFileName}` : "Download report"
-                                  }
+                                  label={a.packageFileName ? `Download ${a.packageFileName}` : "Download report"}
                                 >
                                   <Download className="size-3.5" aria-hidden="true" />
                                   Download report
-                                </a>
+                                </DownloadLink>
                               ) : null}
                               {a.hasReport ? (
-                                <a
-                                  href={`/api/assessments/${a.id}/report`}
+                                <DownloadLink
+                                  path={`/api/assessments/${a.id}/report`}
                                   className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium no-underline sm:h-9 sm:flex-none ${
                                     a.hasPackageFile
                                       ? "border border-line bg-paper text-teal-dark hover:bg-cream"
                                       : "bg-primary text-white shadow-card hover:bg-primary-hover"
                                   }`}
+                                  label="Download PDF"
                                 >
                                   <Download className="size-3.5" aria-hidden="true" />
                                   Download PDF
-                                </a>
+                                </DownloadLink>
                               ) : null}
                             </>
                           ) : (

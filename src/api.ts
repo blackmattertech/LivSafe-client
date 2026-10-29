@@ -6,7 +6,14 @@ export class ApiError extends Error {
   }
 }
 
-const base = import.meta.env.VITE_API_URL ?? "";
+const base = (import.meta.env.VITE_API_URL ?? "").replace(/\/$/, "");
+
+/** Photo and file URLs from the API are root-relative. The portal host does not serve them. */
+export function mediaUrl(path: string | null | undefined) {
+  if (!path) return "";
+  if (/^(https?:|blob:|data:)/i.test(path)) return path;
+  return `${base}${path.startsWith("/") ? path : `/${path}`}`;
+}
 
 let refreshing: Promise<boolean> | null = null;
 
@@ -19,6 +26,21 @@ async function refreshSession() {
       });
   }
   return refreshing;
+}
+
+/** Refresh the session, then open a file on the API host so the browser can download it. */
+export async function openDownload(path: string) {
+  await refreshSession();
+  window.location.assign(mediaUrl(path));
+}
+
+/** Fetch a private file as a blob URL so it can be shown in the portal. */
+export async function fetchAuthenticatedBlob(path: string): Promise<string> {
+  await refreshSession();
+  const res = await fetch(mediaUrl(path), { credentials: "include" });
+  if (!res.ok) throw new ApiError(res.status, "Could not load that file");
+  const blob = await res.blob();
+  return URL.createObjectURL(blob);
 }
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {

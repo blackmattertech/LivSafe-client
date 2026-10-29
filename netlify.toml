@@ -1,0 +1,14 @@
+# Vite only transpiles main.tsx during dev. Production must publish dist/.
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+# Client-side routes such as /reports and /assessment/:id/report.
+# Real files in dist/ are served first. /api is not hosted here.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
