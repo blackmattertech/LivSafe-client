@@ -26,6 +26,8 @@ export type Assessment = {
   completedAt: string | null;
   createdAt: string;
   hasReport: boolean;
+  reportFileName: string | null;
+  reportMimeType: string | null;
   hasPackageFile: boolean;
   packageFileName: string | null;
   requiresIntake: boolean;
@@ -56,12 +58,13 @@ export type Upload = {
 export type IntakeField = {
   id: string;
   label: string;
-  type: "text" | "email" | "tel" | "number" | "textarea" | "single" | "multi";
+  type: "text" | "email" | "tel" | "number" | "textarea" | "single" | "multi" | "checkbox";
   required?: boolean;
   options?: { value: string; label: string }[];
   showIf?: { field: string; oneOf: string[] };
   placeholder?: string;
   help?: string;
+  exclusiveOption?: string;
 };
 
 export type IntakeSection = {
@@ -77,6 +80,7 @@ export type RoomConfig = {
   prompts: string[];
   allowCaption?: boolean;
   captionLabel?: string;
+  areaNameLabel?: string;
 };
 
 export type NotificationItem = {

@@ -50,6 +50,8 @@ export function GetStartedPage() {
   const [name, setName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [agreed, setAgreed] = useState(false);
+  const [ackDetailsOpen, setAckDetailsOpen] = useState(false);
   const [cfg, setCfg] = useState({ stripeEnabled: false, devPayments: true });
   const [params] = useSearchParams();
   const rawService = params.get("service")?.trim();
@@ -63,7 +65,14 @@ export function GetStartedPage() {
     track("checkout_start", service);
   }, [service]);
 
+  function requireAgreement() {
+    if (agreed) return true;
+    setError("Please confirm the Terms and Conditions acknowledgment before purchasing.");
+    return false;
+  }
+
   async function succeed() {
+    if (!requireAgreement()) return;
     setBusy(true);
     setError("");
     try {
@@ -95,6 +104,7 @@ export function GetStartedPage() {
 
   async function stripe(e: FormEvent) {
     e.preventDefault();
+    if (!requireAgreement()) return;
     setBusy(true);
     setError("");
     try {
@@ -174,8 +184,51 @@ export function GetStartedPage() {
             </Field>
             <ErrorText>{error}</ErrorText>
 
+            <div className="grid grid-cols-[auto_minmax(0,1fr)] items-start gap-3 rounded-xl border border-line bg-paper px-3 py-3">
+              <input
+                id="purchase-ack"
+                type="checkbox"
+                className="mt-1 size-5 accent-teal"
+                checked={agreed}
+                onChange={(event) => setAgreed(event.target.checked)}
+              />
+              <p className="m-0 text-sm leading-relaxed text-muted">
+                <label htmlFor="purchase-ack" className="cursor-pointer">
+                  I have read and agree to the{" "}
+                  <a href={`${websiteUrl}/terms/`} target="_blank" rel="noopener noreferrer">
+                    Terms and Conditions
+                  </a>{" "}
+                  and acknowledge the{" "}
+                  <a href={`${websiteUrl}/privacy/`} target="_blank" rel="noopener noreferrer">
+                    Privacy Policy
+                  </a>{" "}
+                  and{" "}
+                  <a href={`${websiteUrl}/disclaimer/`} target="_blank" rel="noopener noreferrer">
+                    Disclaimer
+                  </a>
+                  .
+                  {ackDetailsOpen ? (
+                    <>
+                      {" "}
+                      I understand LivSafe provides educational home safety consulting, not medical treatment or
+                      occupational therapy services, and a remote review cannot identify every hazard or guarantee
+                      safety.
+                    </>
+                  ) : null}
+                </label>{" "}
+                <button
+                  type="button"
+                  className="relative inline cursor-pointer border-0 bg-transparent p-0 font-semibold text-primary underline underline-offset-2 after:absolute after:inset-[-0.7rem_-0.35rem] after:content-[''] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-expanded={ackDetailsOpen}
+                  onClick={() => setAckDetailsOpen((open) => !open)}
+                >
+                  {ackDetailsOpen ? "View less" : "View more"}
+                </button>
+              </p>
+            </div>
+
             {cfg.stripeEnabled ? (
-              <Button type="submit" icon={CreditCard} loading={busy} className="w-full">
+              <Button type="submit" icon={CreditCard} loading={busy} disabled={!agreed} className="w-full">
                 Continue to payment
               </Button>
             ) : null}
@@ -190,7 +243,7 @@ export function GetStartedPage() {
                     type="button"
                     size="sm"
                     icon={CheckCircle2}
-                    disabled={busy || !email}
+                    disabled={busy || !email || !agreed}
                     onClick={() => void succeed()}
                   >
                     Simulate payment success

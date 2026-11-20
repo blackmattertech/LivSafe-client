@@ -17,9 +17,19 @@ export function mediaUrl(path: string | null | undefined) {
 
 let refreshing: Promise<boolean> | null = null;
 
+function withPortal(headers?: HeadersInit) {
+  const next = new Headers(headers);
+  next.set("X-LivSafe-Portal", "client");
+  return next;
+}
+
 async function refreshSession() {
   if (!refreshing) {
-    refreshing = fetch(`${base}/api/auth/refresh`, { method: "POST", credentials: "include" })
+    refreshing = fetch(`${base}/api/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: withPortal(),
+    })
       .then((res) => res.ok)
       .finally(() => {
         refreshing = null;
@@ -37,7 +47,7 @@ export async function openDownload(path: string) {
 /** Fetch a private file as a blob URL so it can be shown in the portal. */
 export async function fetchAuthenticatedBlob(path: string): Promise<string> {
   await refreshSession();
-  const res = await fetch(mediaUrl(path), { credentials: "include" });
+  const res = await fetch(mediaUrl(path), { credentials: "include", headers: withPortal() });
   if (!res.ok) throw new ApiError(res.status, "Could not load that file");
   const blob = await res.blob();
   return URL.createObjectURL(blob);
@@ -45,7 +55,7 @@ export async function fetchAuthenticatedBlob(path: string): Promise<string> {
 
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const isForm = init.body instanceof FormData;
-  const headers = new Headers(init.headers);
+  const headers = withPortal(init.headers);
   if (!isForm && init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
 
   const request = () =>
@@ -72,7 +82,22 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   return data as T;
 }
 
-export const websiteUrl = (import.meta.env.VITE_WEBSITE_URL ?? "http://localhost:5175").replace(/\/$/, "");
+function isLocalClient() {
+  if (import.meta.env.DEV) return true;
+  if (typeof window === "undefined") return false;
+  const host = window.location.hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+/**
+ * Marketing site origin from VITE_WEBSITE_URL.
+ * Local default: http://localhost:5175
+ * Production: set VITE_WEBSITE_URL to the live domain (e.g. https://livsafehome.com)
+ */
+export const websiteUrl = (
+  import.meta.env.VITE_WEBSITE_URL ||
+  (isLocalClient() ? "http://localhost:5175" : "https://livsafehome.com")
+).replace(/\/$/, "");
 
 export type ServiceId = "diy" | "personalized";
 

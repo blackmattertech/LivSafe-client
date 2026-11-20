@@ -148,6 +148,7 @@ export function Field({
   label,
   hint,
   required,
+  requiredMark = "words",
   children,
   as: Tag = "label",
   density = "default",
@@ -155,6 +156,7 @@ export function Field({
   label: string;
   hint?: string;
   required?: boolean;
+  requiredMark?: "words" | "star";
   children: ReactNode;
   as?: "label" | "fieldset";
   density?: "default" | "comfortable";
@@ -168,11 +170,17 @@ export function Field({
         }`}
       >
         {label}
-        {required ? (
+        {required && requiredMark === "star" ? (
+          <span className="ml-0.5 text-[#e11d48]" aria-hidden="true">
+            *
+          </span>
+        ) : null}
+        {required && requiredMark === "words" ? (
           <span className={`ml-1.5 font-medium text-terracotta ${large ? "text-base" : "text-sm"}`}>
             (required)
           </span>
         ) : null}
+        {required && requiredMark === "star" ? <span className="sr-only"> required</span> : null}
       </span>
       {hint ? (
         <span
@@ -368,6 +376,7 @@ export function ChoiceCard({
   checked,
   onChange,
   label,
+  icon: Icon,
   required,
   disabled,
   density = "default",
@@ -377,6 +386,7 @@ export function ChoiceCard({
   checked: boolean;
   onChange: () => void;
   label: string;
+  icon?: LucideIcon;
   required?: boolean;
   disabled?: boolean;
   density?: "default" | "comfortable";
@@ -422,6 +432,7 @@ export function ChoiceCard({
           )
         ) : null}
       </span>
+      {Icon ? <Icon className={`shrink-0 text-[#5f8f98] ${large ? "size-5" : "size-4"}`} aria-hidden="true" /> : null}
       <span className={`leading-snug text-pretty ${large ? "text-lg" : "text-base"}`}>{label}</span>
     </label>
   );

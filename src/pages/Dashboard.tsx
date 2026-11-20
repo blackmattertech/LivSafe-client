@@ -10,16 +10,18 @@ import {
   CreditCard,
   Download,
   FileCheck2,
+  FileText,
   FolderOpen,
   Headset,
   Images,
+  LoaderCircle,
   Play,
   Plus,
   Send,
   UserRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { api, mediaUrl } from "../api";
+import { api, mediaUrl, websiteUrl } from "../api";
 import { DownloadLink } from "../components/DownloadLink";
 import { Card, PageLoader, StatusChip } from "../components/ui";
 import { intakePath } from "../lib/intake";
@@ -34,6 +36,13 @@ const STEPS: Step[] = [
   { key: "submitted", label: "Submitted", icon: Send },
   { key: "report", label: "Report", icon: FileCheck2 },
 ];
+
+const HOUSE_ART =
+  "https://res.cloudinary.com/kkrsynmx/image/upload/f_png,q_auto,w_640/v1790697550/81acbbf9-e8fe-4eec-bd5a-dc1d9c5c0bd6.png";
+const SUPPORT_ART =
+  "https://res.cloudinary.com/kkrsynmx/image/upload/e_trim/w_480,f_png,q_auto/v1790697639/cdf59613-6f2a-47bf-bb12-fcf8e6e747e2.png";
+const CONTACT_SUPPORT = `${websiteUrl}/contact/`;
+const CTA = "bg-[#0D9488] text-white hover:bg-[#087F7B] active:bg-[#087F7B]";
 
 function stepState(a: Assessment) {
   return [
@@ -59,33 +68,16 @@ function nextAction(a: Assessment): { href: string; label: string } {
 function formatDate(value: string | null) {
   if (!value) return "—";
   return new Date(value).toLocaleDateString(undefined, {
-    month: "short",
     day: "numeric",
+    month: "short",
     year: "numeric",
   });
 }
 
-const HOUSE_ART =
-  "https://res.cloudinary.com/kkrsynmx/image/upload/f_png,q_auto,w_640/v1790697550/81acbbf9-e8fe-4eec-bd5a-dc1d9c5c0bd6.png";
-const SUPPORT_ART =
-  "https://res.cloudinary.com/kkrsynmx/image/upload/e_trim/w_480,f_png,q_auto/v1790697639/cdf59613-6f2a-47bf-bb12-fcf8e6e747e2.png";
-const CONTACT_SUPPORT = "https://livsafehome.com/contact/";
-
-const ASSESSMENT_POINTS: { key: string; icon: LucideIcon; label: ReactNode }[] = [
-  { key: "sections", icon: ClipboardList, label: "7 short sections" },
-  { key: "uploads", icon: Camera, label: "Upload photos or video" },
-  {
-    key: "recommendations",
-    icon: UserRound,
-    label: (
-      <>
-        Get personalized
-        <br />
-        recommendations
-      </>
-    ),
-  },
-];
+function assessmentTitle(a: Assessment) {
+  const name = a.intakeFormTitle?.trim() || "Home safety assessment";
+  return `${name} ${formatDate(a.paidAt ?? a.createdAt)}`;
+}
 
 const QUICK_ACCESS: {
   title: string;
@@ -109,7 +101,7 @@ const QUICK_ACCESS: {
     body: "View or update your personal information",
     icon: UserRound,
     card: "bg-[#F0FDFA]",
-    iconWrap: "bg-wellness-light text-wellness",
+    iconWrap: "bg-[#CCFBF1] text-[#0D9488]",
     to: "/profile",
   },
   {
@@ -142,9 +134,9 @@ function BannerSlideshow({ banners }: { banners: { id: string; url: string }[] }
   }
 
   return (
-    <section aria-roledescription="carousel" aria-label="Banners">
+    <section aria-roledescription="carousel" aria-label="Banners" className="w-full min-w-0">
       <div
-        className="relative aspect-[2/1] overflow-hidden rounded-xl border border-line bg-linen"
+        className="relative aspect-[4/1] w-full overflow-hidden rounded-[1.25rem] border border-line bg-linen"
         onTouchStart={(event) => {
           startX.current = event.touches[0]?.clientX ?? null;
           setPaused(true);
@@ -165,7 +157,9 @@ function BannerSlideshow({ banners }: { banners: { id: string; url: string }[] }
             key={banner.id}
             src={banner.url}
             alt=""
-            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+            width={1280}
+            height={320}
+            className={`absolute inset-0 h-full w-full object-cover object-right transition-opacity duration-500 ${
               i === index ? "opacity-100" : "pointer-events-none opacity-0"
             }`}
           />
@@ -195,98 +189,134 @@ function BannerSlideshow({ banners }: { banners: { id: string; url: string }[] }
           </>
         ) : null}
       </div>
-      {count > 1 ? (
-        <div className="mt-1 flex flex-wrap justify-center" role="tablist" aria-label="Choose a banner">
-          {banners.map((banner, i) => (
-            <button
-              key={banner.id}
-              type="button"
-              role="tab"
-              aria-selected={i === index}
-              aria-label={`Banner ${i + 1} of ${count}`}
-              className="grid size-11 place-items-center"
-              onClick={() => go(i)}
-            >
-              <span className={`block h-2 rounded-full ${i === index ? "w-6 bg-teal" : "w-2 bg-line"}`} />
-            </button>
-          ))}
-        </div>
-      ) : null}
     </section>
   );
 }
 
-function MobileHome({ startHref }: { startHref: string }) {
+function HeroBanner({ startHref }: { startHref: string }) {
   return (
-    <div className="w-full min-w-0 space-y-4 min-[400px]:space-y-5">
-      <section className="overflow-hidden rounded-[1.25rem] bg-[#F0FDFA] px-3 pt-4 pb-3.5 min-[400px]:px-4 min-[400px]:pt-5 min-[400px]:pb-4">
-        <p className="text-[clamp(0.625rem,2.5vw,0.6875rem)] font-semibold tracking-[0.12em] text-teal uppercase">
-          Home safety assessment
-        </p>
-        <div className="mt-2 flex items-center gap-2">
-          <h1 className="min-w-0 flex-1 text-[clamp(1.35rem,6.2vw,1.75rem)] font-bold leading-[1.12] tracking-tight text-balance text-ink">
+    <section className="relative overflow-hidden rounded-[1.25rem] bg-[#E6FAF8] px-4 py-5 sm:px-6 sm:py-6 lg:px-8 lg:py-7">
+      <div className="relative z-10 grid items-center gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold tracking-[0.14em] text-[#0D9488] uppercase">Home safety assessment</p>
+          <h1 className="mt-2 max-w-xl text-3xl font-bold tracking-tight text-balance text-ink sm:text-4xl">
             Start Your Assessment
           </h1>
+          <p className="mt-3 max-w-lg text-base leading-relaxed text-pretty text-text-secondary">
+            Answer a few questions about yourself and your home, then upload photos or a short video of the areas
+            you’d like us to review.
+          </p>
+          <div className="mt-5">
+            <Link
+              to={startHref}
+              className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold no-underline shadow-card transition-colors ${CTA}`}
+            >
+              Start Assessment
+              <ArrowRight className="size-5 shrink-0" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+
+        <div className="relative mx-auto flex w-full max-w-md items-end justify-center lg:max-w-none lg:justify-end">
           <img
             src={HOUSE_ART}
             alt=""
             width={640}
             height={427}
-            className="w-[44%] max-w-56 shrink-0 object-contain min-[400px]:w-[50%]"
+            className="w-[70%] max-w-72 object-contain drop-shadow-sm sm:w-[60%] sm:max-w-80"
           />
         </div>
-        <p className="mt-3 text-[clamp(0.875rem,3.5vw,1rem)] leading-relaxed text-pretty text-text-secondary">
-          Answer a few questions about yourself and your home, then upload photos or a short video of the areas
-          you’d like us to review.
-        </p>
+      </div>
+    </section>
+  );
+}
 
-        <ul className="mt-4 grid grid-cols-3 gap-1.5 min-[400px]:gap-2">
-          {ASSESSMENT_POINTS.map((point) => (
-            <li key={point.key} className="flex min-w-0 flex-col items-center gap-1.5 text-center">
-              <span className="grid size-9 shrink-0 place-items-center rounded-full bg-paper text-teal shadow-card min-[400px]:size-10">
-                <point.icon className="size-4" aria-hidden="true" />
-              </span>
-              <span className="w-full min-w-0 text-[clamp(0.625rem,2.7vw,0.8125rem)] font-medium leading-tight text-balance text-ink">
-                {point.label}
-              </span>
-            </li>
-          ))}
-        </ul>
+function StatsStrip({
+  total,
+  inProgress,
+  reports,
+  photos,
+}: {
+  total: number;
+  inProgress: number;
+  reports: number;
+  photos: number;
+}) {
+  const items = [
+    {
+      label: "Assessments",
+      value: total,
+      hint: total === 1 ? "Total submitted" : "Total assessments",
+      icon: ClipboardList,
+      iconClass: "bg-primary-light text-primary",
+    },
+    {
+      label: "In Progress",
+      value: inProgress,
+      hint: inProgress === 1 ? "Needs your action" : "Need your action",
+      icon: LoaderCircle,
+      iconClass: "bg-[#CCFBF1] text-[#0D9488]",
+    },
+    {
+      label: "Reports",
+      value: reports,
+      hint: reports === 1 ? "Ready to view" : "Ready to view",
+      icon: FileText,
+      iconClass: "bg-info-bg text-info",
+    },
+    {
+      label: "Photos",
+      value: photos,
+      hint: "Total uploaded",
+      icon: Images,
+      iconClass: "bg-warning-bg text-warning",
+    },
+  ];
 
-        <Link
-          to={startHref}
-          className="mt-4 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-teal px-4 text-[clamp(0.9375rem,3.8vw,1rem)] font-semibold text-white no-underline shadow-card transition-colors hover:bg-teal-dark"
-        >
-          Start Assessment
-          <ArrowRight className="size-5 shrink-0" aria-hidden="true" />
-        </Link>
-      </section>
+  return (
+    <Card className="grid grid-cols-2 gap-px overflow-hidden bg-line/80 p-0 sm:grid-cols-4">
+      {items.map((item) => (
+        <div key={item.label} className="flex min-w-0 items-center gap-3 bg-paper px-3 py-4 sm:px-4">
+          <span className={`grid size-11 shrink-0 place-items-center rounded-full ${item.iconClass}`}>
+            <item.icon className="size-5" aria-hidden="true" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-xs font-medium text-muted">{item.label}</p>
+            <p className="text-xl font-semibold tabular-nums text-ink">{item.value}</p>
+            <p className="truncate text-xs text-muted">{item.hint}</p>
+          </div>
+        </div>
+      ))}
+    </Card>
+  );
+}
 
-      <section aria-labelledby="quick-access-heading">
-        <h2 id="quick-access-heading" className="text-[clamp(1.125rem,4.5vw,1.25rem)] font-bold tracking-tight text-ink">
+function QuickAccessSidebar() {
+  return (
+    <div className="space-y-4">
+      <section aria-labelledby="quick-access-heading" className="space-y-3">
+        <h2 id="quick-access-heading" className="text-lg font-bold tracking-tight text-ink">
           Quick Access
         </h2>
-        <ul className="mt-3 grid grid-cols-3 items-stretch gap-2 min-[400px]:gap-2.5">
+        <ul className="space-y-3">
           {QUICK_ACCESS.map((item) => {
-            const className = `flex h-full min-w-0 flex-col rounded-2xl border border-line/80 p-1.5 no-underline min-[400px]:p-2.5 ${item.card}`;
+            const className = `flex min-h-[4.5rem] items-center gap-3 rounded-2xl border border-line/80 p-3 no-underline transition-colors hover:brightness-[0.99] ${item.card}`;
             const body = (
               <>
-                <span
-                  className={`grid size-8 place-items-center rounded-full min-[400px]:size-10 ${item.iconWrap}`}
-                >
-                  <item.icon className="size-4 min-[400px]:size-5" aria-hidden="true" />
+                <span className={`grid size-11 shrink-0 place-items-center rounded-xl ${item.iconWrap}`}>
+                  <item.icon className="size-5" aria-hidden="true" />
                 </span>
-                <span className="mt-2 flex min-w-0 items-start gap-0.5 text-[clamp(0.75rem,3vw,0.875rem)] font-semibold leading-tight text-ink min-[400px]:mt-3">
-                  <span className="min-w-0">{item.title}</span>
-                  <ArrowRight className="mt-0.5 size-3 shrink-0 text-muted min-[400px]:size-3.5" aria-hidden="true" />
-                </span>
-                <span className="mt-1 min-w-0 text-[9px] leading-snug text-text-secondary min-[360px]:text-[10px] min-[420px]:text-xs min-[520px]:text-[13px] [overflow-wrap:normal]">
-                  {item.body}
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-1 font-semibold text-ink">
+                    <span className="truncate">{item.title}</span>
+                    <ArrowRight className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+                  </span>
+                  <span className="mt-0.5 block text-xs leading-snug text-text-secondary">{item.body}</span>
                 </span>
               </>
             );
             return (
-              <li key={item.title} className="min-w-0">
+              <li key={item.title}>
                 {item.href ? (
                   <a href={item.href} target="_blank" rel="noopener noreferrer" className={className}>
                     {body}
@@ -302,35 +332,28 @@ function MobileHome({ startHref }: { startHref: string }) {
         </ul>
       </section>
 
-      <section className="grid grid-cols-[4.25rem_minmax(0,1fr)] items-center gap-2 overflow-hidden rounded-[1.25rem] border border-line bg-paper p-3 min-[400px]:grid-cols-[5.5rem_minmax(0,1fr)] min-[400px]:gap-3 min-[400px]:p-4">
+      <section className="overflow-hidden rounded-[1.25rem] border border-line bg-paper p-4 shadow-card">
         <img
           src={SUPPORT_ART}
           alt=""
           width={320}
           height={239}
-          className="w-full object-contain"
+          className="mx-auto h-28 w-auto object-contain"
           loading="lazy"
         />
-        <div className="min-w-0">
-          <p className="text-[clamp(0.625rem,2.4vw,0.6875rem)] font-semibold tracking-[0.12em] text-teal uppercase">
-            Need help?
-          </p>
-          <h2 className="mt-0.5 text-[clamp(0.875rem,3.6vw,1rem)] font-bold leading-snug tracking-tight text-balance text-ink">
-            Our team is here to support you.
-          </h2>
-          <p className="mt-1 text-[clamp(0.75rem,3.1vw,0.875rem)] leading-snug text-pretty text-text-secondary">
-            If you have any questions or need assistance, please contact us.
-          </p>
-          <a
-            href={CONTACT_SUPPORT}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-2 inline-flex min-h-11 max-w-full items-center gap-1 rounded-lg border border-teal bg-paper px-2.5 text-[clamp(0.75rem,3vw,0.875rem)] font-semibold text-teal no-underline min-[400px]:px-3"
-          >
-            Contact Support
-            <ArrowRight className="size-3.5 shrink-0" aria-hidden="true" />
-          </a>
-        </div>
+        <p className="mt-3 text-xs font-semibold tracking-[0.12em] text-[#0D9488] uppercase">Need help?</p>
+        <h2 className="mt-1 text-base font-bold leading-snug tracking-tight text-ink">
+          Our team is here to support you.
+        </h2>
+        <a
+          href={CONTACT_SUPPORT}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-4 inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-[#0D9488] bg-paper px-3 text-sm font-semibold text-[#0D9488] no-underline transition-colors hover:bg-[#F0FDFA]"
+        >
+          Contact Support
+          <ArrowRight className="size-4 shrink-0" aria-hidden="true" />
+        </a>
       </section>
     </div>
   );
@@ -348,6 +371,7 @@ export function DashboardPage() {
   const assessments = useAssessments();
   const [banners, setBanners] = useState<{ id: string; url: string }[]>([]);
   const openAssessment = assessments?.find((item) => item.requiresIntake && !item.submittedAt && !item.hasReport);
+  const startHref = openAssessment ? nextAction(openAssessment).href : "/get-started";
 
   useEffect(() => {
     void api<{ banners: { id: string; url: string }[] }>("/api/banners")
@@ -355,21 +379,27 @@ export function DashboardPage() {
       .catch(() => setBanners([]));
   }, []);
 
+  const totalPhotos = assessments?.reduce((sum, a) => sum + a.uploads.length, 0) ?? 0;
+  const reportsReady = assessments?.filter((a) => a.hasReport || a.hasPackageFile).length ?? 0;
+  const inProgress = assessments?.filter((a) => a.requiresIntake && !a.submittedAt && !a.hasReport).length ?? 0;
+  const total = assessments?.length ?? 0;
+
   return (
-    <>
-      <div className="mx-auto w-full min-w-0 max-w-lg space-y-4 lg:hidden">
+    <div className="grid w-full min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_17.5rem] xl:grid-cols-[minmax(0,1fr)_18.5rem]">
+      <div className="min-w-0 space-y-5">
         {banners.length > 0 ? <BannerSlideshow banners={banners} /> : null}
-        <MobileHome startHref={openAssessment ? nextAction(openAssessment).href : "/get-started"} />
-      </div>
-      <div className="hidden space-y-5 lg:block">
-        {banners.length > 0 ? <BannerSlideshow banners={banners} /> : null}
+        <HeroBanner startHref={startHref} />
+        <StatsStrip total={total} inProgress={inProgress} reports={reportsReady} photos={totalPhotos} />
         {assessments ? (
-          <AssessmentsBoard assessments={assessments} />
+          <AssessmentsBoard assessments={assessments} embedded />
         ) : (
           <PageLoader label="Loading your assessments" />
         )}
       </div>
-    </>
+      <aside className="min-w-0 lg:pt-1">
+        <QuickAccessSidebar />
+      </aside>
+    </div>
   );
 }
 
@@ -400,10 +430,10 @@ export function ReferPage() {
       <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">Refer</h1>
       <p className="mt-2 text-muted">Share LivSafe with someone who wants a safer home.</p>
       <a
-        href="https://livsafehome.com"
-        className="mt-4 inline-flex min-h-11 items-center text-base font-medium text-teal"
+        href={`${websiteUrl}/`}
+        className="mt-4 inline-flex min-h-11 items-center text-base font-medium text-[#0D9488]"
       >
-        livsafehome.com
+        {websiteUrl.replace(/^https?:\/\//, "")}
       </a>
     </div>
   );
@@ -411,11 +441,12 @@ export function ReferPage() {
 
 function AssessmentsBoard({
   assessments,
-  title = "Your assessments",
-  description = "Open a submission, or pick up where you left off.",
+  title = "Your Assessments",
+  description = "Track progress and open a report when it is ready.",
   showNew = true,
   emptyTitle = "No assessments yet",
   emptyBody,
+  embedded = false,
 }: {
   assessments: Assessment[];
   title?: string;
@@ -423,35 +454,34 @@ function AssessmentsBoard({
   showNew?: boolean;
   emptyTitle?: string;
   emptyBody?: ReactNode;
+  embedded?: boolean;
 }) {
-  const totalPhotos = assessments.reduce((sum, a) => sum + a.uploads.length, 0);
-  const reportsReady = assessments.filter((a) => a.hasReport || a.hasPackageFile).length;
-  const inProgress = assessments.filter((a) => a.requiresIntake && !a.submittedAt && !a.hasReport).length;
-
   return (
     <div className="space-y-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight sm:text-2xl">{title}</h1>
+        <div className="min-w-0">
+          <h2 className={`font-bold tracking-tight text-ink ${embedded ? "text-xl sm:text-2xl" : "text-xl sm:text-2xl"}`}>
+            {embedded ? title : <span className="font-semibold">{title}</span>}
+          </h2>
           <p className="mt-1 text-sm text-muted">{description}</p>
         </div>
         {showNew ? (
           <Link
             to="/get-started"
-            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-teal-dark no-underline shadow-card transition-colors hover:bg-cream sm:h-9 sm:w-auto"
+            className="inline-flex min-h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-[#0D9488]/35 bg-paper px-3 text-sm font-semibold text-[#0D9488] no-underline transition-colors hover:bg-[#F0FDFA] sm:w-auto"
           >
             <Plus className="size-4" aria-hidden="true" />
-            New assessment
+            New Assessment
           </Link>
         ) : null}
       </div>
 
       {assessments.length === 0 ? (
         <Card className="px-5 py-10 text-center">
-          <span className="mx-auto grid size-11 place-items-center rounded-xl bg-teal-soft text-teal-dark">
+          <span className="mx-auto grid size-11 place-items-center rounded-xl bg-[#CCFBF1] text-[#0D9488]">
             <FolderOpen className="size-5" aria-hidden="true" />
           </span>
-          <h2 className="mt-3 text-base font-semibold">{emptyTitle}</h2>
+          <h3 className="mt-3 text-base font-semibold">{emptyTitle}</h3>
           <p className="mx-auto mt-1 max-w-md text-sm text-muted">
             {emptyBody ?? (
               <>
@@ -461,205 +491,184 @@ function AssessmentsBoard({
           </p>
         </Card>
       ) : (
-        <>
-          <Card className="grid grid-cols-3 divide-x divide-line/80">
-            <Metric label="In progress" value={inProgress} hint={inProgress === 1 ? "needs you" : "need you"} />
-            <Metric label="Photos" value={totalPhotos} hint="across all homes" />
-            <Metric label="Reports" value={reportsReady} hint={reportsReady ? "ready to download" : "none yet"} />
-          </Card>
-
-          <ul className="space-y-3">
-            {assessments.map((a) => {
-              const states = stepState(a);
-              const doneCount = states.filter(Boolean).length;
-              const currentIndex = states.findIndex((s) => !s);
-              const action = nextAction(a);
-              const thumbs = a.uploads.slice(0, 4);
-              const extra = a.uploads.length - thumbs.length;
-              const detailHref = !a.requiresIntake
-                ? "/reports"
-                : a.submittedAt
-                  ? `/assessment/${a.id}/submitted`
-                  : a.roomsWithUploads
-                    ? `/assessment/${a.id}/uploads`
-                    : action.href;
-
-              return (
-                <Card as="li" key={a.id} className="overflow-hidden">
-                  <div className="flex flex-col sm:flex-row">
-                    <Link
-                      to={detailHref}
-                      className={`grid h-28 w-full shrink-0 gap-px bg-line no-underline sm:h-auto sm:w-[9.75rem] sm:self-stretch ${
-                        thumbs.length <= 1
-                          ? "grid-cols-1"
-                          : thumbs.length === 2
-                            ? "grid-cols-2 sm:grid-cols-1 sm:grid-rows-2"
-                            : "grid-cols-4 sm:grid-cols-2 sm:grid-rows-2"
-                      }`}
-                      aria-label={`Open assessment ${a.id.slice(0, 8)}`}
-                    >
-                      {thumbs.length ? (
-                        thumbs.map((file, i) => (
-                          <span key={file.id} className="relative min-h-0 overflow-hidden bg-linen">
-                            {file.fileType === "video" ? (
-                              <>
-                                <video className="absolute inset-0 h-full w-full object-cover" src={mediaUrl(file.url)} muted playsInline />
-                                <span className="absolute inset-0 grid place-items-center bg-ink/25">
-                                  <Play className="size-3.5 text-white" aria-hidden="true" />
-                                </span>
-                              </>
-                            ) : (
-                              <img
-                                src={mediaUrl(file.url)}
-                                alt=""
-                                className="absolute inset-0 h-full w-full object-cover"
-                                loading="lazy"
-                              />
-                            )}
-                            {i === thumbs.length - 1 && extra > 0 ? (
-                              <span className="absolute inset-0 grid place-items-center bg-ink/50 text-xs font-semibold text-white">
-                                +{extra}
-                              </span>
-                            ) : null}
-                          </span>
-                        ))
-                      ) : (
-                        <span className="grid place-items-center bg-linen text-muted">
-                          <Images className="size-6" aria-hidden="true" />
-                        </span>
-                      )}
-                    </Link>
-
-                    <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-3.5 sm:p-4">
-                      <div className="flex flex-wrap items-start justify-between gap-2.5">
-                        <div className="min-w-0">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <StatusChip size="sm" status={a.status} label={a.statusLabel} />
-                            <span className="text-xs tabular-nums text-muted">#{a.id.slice(0, 8)}</span>
-                          </div>
-                          <p className="mt-1 text-sm text-muted">
-                            Started {formatDate(a.paidAt ?? a.createdAt)}
-                            {a.submittedAt ? ` · Submitted ${formatDate(a.submittedAt)}` : null}
-                          </p>
-                        </div>
-                        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
-                          {a.requiresIntake ? (
-                            <>
-                              {a.hasPackageFile ? (
-                                <DownloadLink
-                                  path={`/api/assessments/${a.id}/package-file`}
-                                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
-                                  label={a.packageFileName ? `Download ${a.packageFileName}` : "Download package file"}
-                                >
-                                  <Download className="size-3.5" aria-hidden="true" />
-                                  Download
-                                </DownloadLink>
-                              ) : null}
-                              {a.hasReport ? (
-                                <DownloadLink
-                                  path={`/api/assessments/${a.id}/report`}
-                                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
-                                  label="Download PDF"
-                                >
-                                  <Download className="size-3.5" aria-hidden="true" />
-                                  PDF
-                                </DownloadLink>
-                              ) : null}
-                              <Link
-                                to={action.href}
-                                className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover sm:h-9 sm:flex-none"
-                              >
-                                {action.label}
-                                <ArrowRight className="size-3.5" aria-hidden="true" />
-                              </Link>
-                            </>
-                          ) : a.hasReport || a.hasPackageFile ? (
-                            <>
-                              {a.hasPackageFile ? (
-                                <DownloadLink
-                                  path={`/api/assessments/${a.id}/package-file`}
-                                  className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover sm:h-9 sm:flex-none"
-                                  label={a.packageFileName ? `Download ${a.packageFileName}` : "Download report"}
-                                >
-                                  <Download className="size-3.5" aria-hidden="true" />
-                                  Download report
-                                </DownloadLink>
-                              ) : null}
-                              {a.hasReport ? (
-                                <DownloadLink
-                                  path={`/api/assessments/${a.id}/report`}
-                                  className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-medium no-underline sm:h-9 sm:flex-none ${
-                                    a.hasPackageFile
-                                      ? "border border-line bg-paper text-teal-dark hover:bg-cream"
-                                      : "bg-primary text-white shadow-card hover:bg-primary-hover"
-                                  }`}
-                                  label="Download PDF"
-                                >
-                                  <Download className="size-3.5" aria-hidden="true" />
-                                  Download PDF
-                                </DownloadLink>
-                              ) : null}
-                            </>
-                          ) : (
-                            <p className="text-sm text-muted">Your report is not ready yet.</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {a.requiresIntake ? (
-                      <div>
-                        <div className="mb-2 flex items-center justify-between gap-3 text-xs text-muted">
-                          <span>
-                            {doneCount} of {STEPS.length} steps
-                          </span>
-                          <span>
-                            {a.roomsWithUploads}/{a.totalRooms} areas · {a.uploads.length} file
-                            {a.uploads.length === 1 ? "" : "s"}
-                          </span>
-                        </div>
-                        <ol className="grid grid-cols-5 gap-1">
-                          {STEPS.map((step, i) => {
-                            const done = states[i];
-                            const active = i === currentIndex;
-                            return (
-                              <li
-                                key={step.key}
-                                className={`flex items-center gap-1 rounded-md px-1.5 py-1 ${
-                                  done
-                                    ? "bg-sage-soft text-sage"
-                                    : active
-                                      ? "bg-teal-soft text-teal-dark"
-                                      : "bg-linen/80 text-muted"
-                                }`}
-                              >
-                                <step.icon className="size-3 shrink-0" aria-hidden="true" />
-                                <span className="hidden truncate text-[11px] font-medium sm:inline">
-                                  {step.label}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </ul>
-        </>
+        <ul className="space-y-3">
+          {assessments.map((a) => (
+            <AssessmentCard key={a.id} assessment={a} />
+          ))}
+        </ul>
       )}
     </div>
   );
 }
 
-function Metric({ label, value, hint }: { label: string; value: number; hint: string }) {
+function AssessmentCard({ assessment: a }: { assessment: Assessment }) {
+  const states = stepState(a);
+  const doneCount = states.filter(Boolean).length;
+  const currentIndex = states.findIndex((s) => !s);
+  const action = nextAction(a);
+  const thumbs = a.uploads.slice(0, 4);
+  const extra = a.uploads.length - thumbs.length;
+  const detailHref = !a.requiresIntake
+    ? "/reports"
+    : a.submittedAt
+      ? `/assessment/${a.id}/submitted`
+      : a.roomsWithUploads
+        ? `/assessment/${a.id}/uploads`
+        : action.href;
+
   return (
-    <div className="px-3 py-3 text-center sm:px-4">
-      <p className="text-[13px] font-semibold text-muted">{label}</p>
-      <p className="mt-0.5 text-lg font-semibold tabular-nums leading-none">{value}</p>
-      <p className="mt-1 text-xs text-muted">{hint}</p>
-    </div>
+    <Card as="li" className="overflow-hidden">
+      <div className="flex flex-col sm:flex-row">
+        <Link
+          to={detailHref}
+          className={`grid h-28 w-full shrink-0 gap-px bg-line no-underline sm:h-auto sm:w-[9.75rem] sm:self-stretch ${
+            thumbs.length <= 1
+              ? "grid-cols-1"
+              : thumbs.length === 2
+                ? "grid-cols-2 sm:grid-cols-1 sm:grid-rows-2"
+                : "grid-cols-4 sm:grid-cols-2 sm:grid-rows-2"
+          }`}
+          aria-label="Open assessment"
+        >
+          {thumbs.length ? (
+            thumbs.map((file, i) => (
+              <span key={file.id} className="relative min-h-0 overflow-hidden bg-linen">
+                {file.fileType === "video" ? (
+                  <>
+                    <video className="absolute inset-0 h-full w-full object-cover" src={mediaUrl(file.url)} muted playsInline />
+                    <span className="absolute inset-0 grid place-items-center bg-ink/25">
+                      <Play className="size-3.5 text-white" aria-hidden="true" />
+                    </span>
+                  </>
+                ) : (
+                  <img
+                    src={mediaUrl(file.url)}
+                    alt=""
+                    className="absolute inset-0 h-full w-full object-cover"
+                    loading="lazy"
+                  />
+                )}
+                {i === thumbs.length - 1 && extra > 0 ? (
+                  <span className="absolute inset-0 grid place-items-center bg-ink/50 text-xs font-semibold text-white">
+                    +{extra}
+                  </span>
+                ) : null}
+              </span>
+            ))
+          ) : (
+            <span className="grid place-items-center bg-linen text-muted">
+              <Images className="size-6" aria-hidden="true" />
+            </span>
+          )}
+        </Link>
+
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 p-3.5 sm:p-4">
+          <div className="flex flex-wrap items-start justify-between gap-2.5">
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <StatusChip size="sm" status={a.status} label={a.statusLabel} />
+              </div>
+              <h3 className="mt-1.5 text-base font-semibold text-ink">{assessmentTitle(a)}</h3>
+              {a.requiresIntake ? (
+                <p className="mt-1 text-sm text-muted">
+                  {doneCount} of {STEPS.length} steps
+                  {a.submittedAt ? ` · Submitted ${formatDate(a.submittedAt)}` : null}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted">Started {formatDate(a.paidAt ?? a.createdAt)}</p>
+              )}
+            </div>
+            <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+              {a.requiresIntake ? (
+                <>
+                  {a.hasPackageFile ? (
+                    <DownloadLink
+                      path={`/api/assessments/${a.id}/package-file`}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-[#0D9488] no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
+                      label={a.packageFileName ? `Download ${a.packageFileName}` : "Download package file"}
+                    >
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Download
+                    </DownloadLink>
+                  ) : null}
+                  {a.hasReport ? (
+                    <DownloadLink
+                      path={`/api/assessments/${a.id}/report`}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg border border-line bg-paper px-3 text-sm font-medium text-[#0D9488] no-underline transition-colors hover:bg-cream sm:h-9 sm:flex-none"
+                      label="Download report"
+                    >
+                      <Download className="size-3.5" aria-hidden="true" />
+                      PDF
+                    </DownloadLink>
+                  ) : null}
+                  <Link
+                    to={action.href}
+                    className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold no-underline shadow-card transition-colors sm:h-9 sm:flex-none ${CTA}`}
+                  >
+                    {action.label}
+                    <ArrowRight className="size-3.5" aria-hidden="true" />
+                  </Link>
+                </>
+              ) : a.hasReport || a.hasPackageFile ? (
+                <>
+                  {a.hasPackageFile ? (
+                    <DownloadLink
+                      path={`/api/assessments/${a.id}/package-file`}
+                      className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold no-underline shadow-card transition-colors sm:h-9 sm:flex-none ${CTA}`}
+                      label={a.packageFileName ? `Download ${a.packageFileName}` : "Download report"}
+                    >
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Download report
+                    </DownloadLink>
+                  ) : null}
+                  {a.hasReport ? (
+                    <DownloadLink
+                      path={`/api/assessments/${a.id}/report`}
+                      className={`inline-flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-lg px-3 text-sm font-semibold no-underline sm:h-9 sm:flex-none ${
+                        a.hasPackageFile
+                          ? "border border-line bg-paper text-[#0D9488] hover:bg-cream"
+                          : `${CTA} shadow-card`
+                      }`}
+                      label="Download report"
+                    >
+                      <Download className="size-3.5" aria-hidden="true" />
+                      Download report
+                    </DownloadLink>
+                  ) : null}
+                </>
+              ) : (
+                <p className="text-sm text-muted">
+                  {a.submittedAt ? "Your report should be ready in 3 business days." : "Your report is not ready yet."}
+                </p>
+              )}
+            </div>
+          </div>
+
+          {a.requiresIntake ? (
+            <ol className="grid grid-cols-5 gap-1">
+              {STEPS.map((step, i) => {
+                const done = states[i];
+                const active = i === currentIndex;
+                return (
+                  <li
+                    key={step.key}
+                    className={`flex items-center gap-1 rounded-md px-1.5 py-1 ${
+                      done
+                        ? "bg-sage-soft text-sage"
+                        : active
+                          ? "bg-[#CCFBF1] text-[#0D9488]"
+                          : "bg-linen/80 text-muted"
+                    }`}
+                  >
+                    <step.icon className="size-3 shrink-0" aria-hidden="true" />
+                    <span className="hidden truncate text-[11px] font-medium sm:inline">{step.label}</span>
+                  </li>
+                );
+              })}
+            </ol>
+          ) : null}
+        </div>
+      </div>
+    </Card>
   );
 }
