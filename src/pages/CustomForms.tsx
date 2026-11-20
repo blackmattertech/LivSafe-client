@@ -1,8 +1,30 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Check, ClipboardList, Paperclip, Save } from "lucide-react";
-import { ApiError, api, mediaUrl } from "../api";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  ClipboardList,
+  ExternalLink,
+  FileText,
+  Headset,
+  HeartHandshake,
+  Mail,
+  MoreHorizontal,
+  Paperclip,
+  Phone,
+  ShieldCheck,
+  Smile,
+  User,
+  UserRound,
+  Users,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { ApiError, api, mediaUrl, websiteUrl } from "../api";
+import { PhotoSources } from "../components/PhotoSources";
 import { Button, Card, ChoiceCard, Field, PageLoader, TextArea, TextInput } from "../components/ui";
+import { SectionMenu } from "../components/SectionMenu";
 
 export type FieldType =
   | "text"
@@ -269,68 +291,243 @@ export function FormFillPage() {
     );
   }
 
+  const progressPct = form.sections.length ? Math.round((savedCount / form.sections.length) * 100) : 0;
+  const rows = formRows(section.fields);
+  const sectionSaved = Boolean(form.answers[section.id]);
+
   return (
-    <div className="mx-auto w-full max-w-2xl">
-      <div className="mb-5 flex items-center justify-between gap-3">
-        <Link to={`/assessment/${id}/forms`} className="inline-flex min-h-11 items-center gap-1 text-base font-medium">
-          <ArrowLeft className="size-4" aria-hidden="true" />
-          All forms
-        </Link>
-        <p className="text-base text-muted">
-          Section {index + 1} of {form.sections.length}
-        </p>
-      </div>
-      <div className="rounded-2xl border border-line bg-paper p-4 shadow-card sm:p-8">
-        <p className="text-base font-semibold text-teal">{form.title}</p>
-        <h1 className="mt-1 text-pretty text-[1.75rem] font-semibold leading-tight">{section.title}</h1>
-        {section.description ? <p className="mt-3 text-lg leading-relaxed text-muted">{section.description}</p> : null}
-        {index === 0 && form.description ? (
-          <p className="mt-3 text-lg leading-relaxed text-muted">{form.description}</p>
-        ) : null}
-        {error ? (
-          <p className="mt-4 rounded-xl border border-terracotta/30 bg-terracotta-soft px-4 py-3 text-base text-terracotta" role="alert">
-            {error}
+    <div className="intake-page">
+      <header className="intake-hero">
+        <img
+          src="https://res.cloudinary.com/hoevqlxx/image/upload/f_auto,q_auto/v1795160843/656fed2a-9a17-464c-828a-a024ee29ce26.webp"
+          alt=""
+          width={2172}
+          height={724}
+        />
+        <div className="intake-hero-text">
+          <h1>{form.title}</h1>
+          <p className="intake-hero-lead">Let&apos;s understand the home and the person living in it.</p>
+          <p className="intake-hero-copy">
+            {form.description || "Your answers help prepare personalized home safety recommendations."}
           </p>
-        ) : null}
-        <form
-          className="mt-6 space-y-8"
-          onSubmit={(event) => {
-            event.preventDefault();
-            void save(index + 1);
-          }}
+        </div>
+      </header>
+
+      <div className="intake-mobile-progress">
+        <div>
+          <span>
+            Section {index + 1} of {form.sections.length}
+          </span>
+          <strong>{progressPct}% complete</strong>
+        </div>
+        <div
+          className="intake-meter"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={form.sections.length}
+          aria-valuenow={savedCount}
+          aria-label="Form progress"
         >
-          {section.fields.map((field) => (
-            <Question
-              key={field.id}
-              field={field}
-              value={data[field.id]}
-              disabled={!editable || uploading === field.id}
-              uploading={uploading === field.id}
-              onChange={(value) => setField(field.id, value)}
-              onFile={(file) => uploadFile(field, file)}
-            />
-          ))}
-          <div className="flex flex-wrap items-center gap-3 border-t border-line/70 pt-6">
-            {index > 0 ? (
-              <Button type="button" variant="secondary" icon={ArrowLeft} disabled={saving} onClick={() => void save(index - 1)}>
-                Back
-              </Button>
-            ) : null}
-            <Button type="submit" loading={saving} icon={isLast ? Check : ArrowRight}>
-              {editable ? (isLast ? "Save form" : "Save and continue") : isLast ? "Done" : "Continue"}
-            </Button>
-            {editable ? (
-              <span className="flex items-center gap-1.5 text-base text-muted">
-                <Save className="size-4" aria-hidden="true" />
-                {savedCount} of {form.sections.length} sections saved
-              </span>
-            ) : null}
+          <span style={{ width: `${progressPct}%` }} />
+        </div>
+      </div>
+
+      <div className="intake-layout">
+        <nav className="intake-card intake-sections" aria-label="Assessment sections">
+          <div className="intake-card-head">
+            <h2>Assessment Sections</h2>
+            <p>
+              {form.sections.length} total section{form.sections.length === 1 ? "" : "s"}
+            </p>
           </div>
-        </form>
+          <ol>
+            {form.sections.map((item, i) => {
+              const active = i === index;
+              return (
+                <li key={item.id}>
+                  <button type="button" onClick={() => void save(i)} aria-current={active ? "step" : undefined} disabled={saving}>
+                    <span className={active ? "is-current" : undefined}>{i + 1}</span>
+                    <span>
+                      <strong>{item.title}</strong>
+                      {item.description ? <small>{item.description.split(/(?<=\.)\s/)[0]}</small> : null}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+          <p className="intake-saved-note">
+            <FileText aria-hidden="true" />
+            <span>Your progress is saved when you continue</span>
+            {sectionSaved ? <Check aria-hidden="true" /> : null}
+          </p>
+          <p className="px-4 pb-4">
+            <Link to={`/assessment/${id}/forms`}>All forms</Link>
+          </p>
+        </nav>
+
+        <section className="intake-card intake-form-card">
+          <p className="intake-kicker">
+            Section {index + 1} of {form.sections.length}
+          </p>
+          <h2>{section.title}</h2>
+          {section.description ? <p className="intake-section-copy">{section.description}</p> : null}
+          {error ? (
+            <p className="mt-4 rounded-xl border border-terracotta/30 bg-terracotta-soft px-4 py-3 text-base text-terracotta" role="alert">
+              {error}
+            </p>
+          ) : null}
+
+          <SectionMenu
+            sections={form.sections}
+            index={index}
+            saved={form.sections.map((item) => Boolean(form.answers[item.id]))}
+            onPick={(next) => void save(next)}
+          />
+
+          <form
+            id="intake-form"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(index + 1);
+            }}
+          >
+            <div className="intake-fields">
+              {rows.map((row) => (
+                <div key={row.map((field) => field.id).join("-")} className={row.length > 1 ? "intake-field-row" : undefined}>
+                  {row.map((field) => (
+                    <Question
+                      key={field.id}
+                      field={field}
+                      value={data[field.id]}
+                      disabled={!editable || uploading === field.id}
+                      uploading={uploading === field.id}
+                      onChange={(value) => setField(field.id, value)}
+                      onFile={(file) => uploadFile(field, file)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="intake-private-mobile">
+              <ShieldCheck aria-hidden="true" />
+              <div>
+                <strong>Your information is private and secure.</strong>
+                <p>All responses are used only for your home safety assessment.</p>
+              </div>
+            </div>
+            <div className="intake-form-foot">
+              <div className="intake-form-actions">
+                <Button type="button" variant="secondary" icon={ArrowLeft} disabled={index === 0 || saving} onClick={() => void save(index - 1)}>
+                  Previous
+                </Button>
+                <p>
+                  {savedCount} of {form.sections.length} sections saved
+                </p>
+                <Button type="submit" className="intake-next" loading={saving || Boolean(uploading)}>
+                  {editable ? (isLast ? "Continue to photos" : "Save and continue") : isLast ? "Done" : "Continue"}
+                  {saving ? null : <ArrowRight className="size-5" aria-hidden="true" />}
+                </Button>
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <aside className="intake-rail" aria-label="Progress and help">
+          <section className="intake-card intake-progress">
+            <div className="intake-progress-top">
+              <div>
+                <h2>Your progress</h2>
+                <p>
+                  <strong>{progressPct}%</strong>
+                </p>
+              </div>
+              <p>
+                Section {index + 1} of {form.sections.length}
+              </p>
+            </div>
+            <div
+              className="intake-meter"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={form.sections.length}
+              aria-valuenow={savedCount}
+              aria-label="Form progress"
+            >
+              <span style={{ width: `${progressPct}%` }} />
+            </div>
+            <ol>
+              {form.sections.map((item, i) => (
+                <li key={item.id} className={i === index ? "is-current" : undefined}>
+                  <span aria-hidden="true" />
+                  {i + 1}. {item.title}
+                </li>
+              ))}
+            </ol>
+          </section>
+          <section className="intake-card intake-help">
+            <Headset aria-hidden="true" />
+            <h2>Need help?</h2>
+            <p>Our team is here if you have any questions about the assessment.</p>
+            <a href={`${websiteUrl}/contact/`} target="_blank" rel="noopener noreferrer">
+              Contact support
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </section>
+          <section className="intake-card intake-private">
+            <ShieldCheck aria-hidden="true" />
+            <h2>Your information is private</h2>
+            <p>All information and photos you share are used only for your home safety assessment.</p>
+          </section>
+        </aside>
+      </div>
+
+      <div className="intake-mobile-bar">
+        <Button type="button" variant="secondary" icon={ArrowLeft} disabled={index === 0 || saving} onClick={() => void save(index - 1)}>
+          Previous
+        </Button>
+        <Button type="submit" form="intake-form" className="intake-next" loading={saving || Boolean(uploading)}>
+          {editable ? (isLast ? "Continue to photos" : "Save and continue") : isLast ? "Done" : "Continue"}
+        </Button>
       </div>
     </div>
   );
 }
+
+function formRows(fields: FormField[]) {
+  const rows: FormField[][] = [];
+  for (let i = 0; i < fields.length; i += 1) {
+    const field = fields[i];
+    const next = fields[i + 1];
+    const pair = next && ((field.type === "text" && next.type === "number") || (field.type === "email" && next.type === "tel"));
+    if (pair && next) {
+      rows.push([field, next]);
+      i += 1;
+    } else {
+      rows.push([field]);
+    }
+  }
+  return rows;
+}
+
+const CHOICE_ICON: Record<string, LucideIcon> = {
+  "person living in the home": User,
+  "spouse/partner": Users,
+  "adult child": UserRound,
+  "other family member": Users,
+  caregiver: HeartHandshake,
+  friend: Smile,
+  other: MoreHorizontal,
+};
+
+function fieldIcon(field: FormField) {
+  if (field.type === "email") return Mail;
+  if (field.type === "tel") return Phone;
+  if (field.type === "number") return Calendar;
+  if (field.type === "text" && /name/i.test(field.label)) return UserRound;
+  return null;
+}
+
 
 function Question({
   field,
@@ -348,8 +545,16 @@ function Question({
   onFile: (file: File | undefined) => Promise<boolean>;
 }) {
   const group = field.type === "radio" || field.type === "multi" || field.type === "boolean";
+  const Icon = fieldIcon(field);
   return (
-    <Field label={field.label} hint={field.help ?? undefined} required={field.required} as={group ? "fieldset" : "label"} density="comfortable">
+    <Field
+      label={field.label}
+      hint={field.help ?? undefined}
+      required={field.required}
+      requiredMark="star"
+      as={group ? "fieldset" : "label"}
+      density="comfortable"
+    >
       {field.type === "textarea" ? (
         <TextArea
           density="comfortable"
@@ -384,6 +589,7 @@ function Question({
               name={field.id}
               checked={value === option.value}
               disabled={disabled}
+              icon={CHOICE_ICON[option.label.trim().toLowerCase()]}
               onChange={() => onChange(option.value)}
               label={option.label}
             />
@@ -427,15 +633,19 @@ function Question({
       ) : field.type === "image" || field.type === "file" ? (
         <FileField field={field} value={value} disabled={disabled} uploading={uploading} onChange={onChange} onFile={onFile} />
       ) : (
-        <TextInput
-          density="comfortable"
-          type={field.type === "datetime" ? "datetime-local" : field.type === "number" ? "number" : field.type}
-          required={field.required}
-          disabled={disabled}
-          placeholder={field.placeholder ?? undefined}
-          value={value == null ? "" : String(value)}
-          onChange={(event) => onChange(field.type === "number" ? event.target.value : event.target.value)}
-        />
+        <div className={Icon ? "intake-icon-field" : undefined}>
+          {Icon ? <Icon className="intake-field-icon" aria-hidden="true" /> : null}
+          <TextInput
+            density="comfortable"
+            className={Icon ? "pl-11" : ""}
+            type={field.type === "datetime" ? "datetime-local" : field.type === "number" ? "number" : field.type}
+            required={field.required}
+            disabled={disabled}
+            placeholder={field.placeholder ?? undefined}
+            value={value == null ? "" : String(value)}
+            onChange={(event) => onChange(event.target.value)}
+          />
+        </div>
       )}
     </Field>
   );
@@ -590,14 +800,21 @@ function FileField({
           </div>
         ))
       )}
-      {disabled ? null : (
+      {disabled ? null : field.type === "image" ? (
+        <PhotoSources
+          disabled={uploading}
+          accept="image/jpeg,image/png,image/webp,image/gif,image/heic,image/heif"
+          galleryLabel={uploading ? "Uploading…" : "Choose from gallery"}
+          cameraLabel={uploading ? "Uploading…" : "Take a photo"}
+          onPick={(files) => void pick(files[0])}
+        />
+      ) : (
         <label className="inline-flex min-h-12 cursor-pointer items-center gap-2 rounded-xl border border-dashed border-line-strong px-4 text-base font-medium text-ink hover:bg-linen">
           <Paperclip className="size-4" aria-hidden="true" />
-          {uploading ? "Uploading…" : field.type === "image" ? "Choose an image" : "Choose a file"}
+          {uploading ? "Uploading…" : "Choose a file"}
           <input
             type="file"
             className="sr-only"
-            accept={field.type === "image" ? "image/jpeg,image/png,image/webp,image/gif" : undefined}
             disabled={uploading}
             onChange={(event) => {
               void pick(event.target.files?.[0]);

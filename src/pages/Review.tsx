@@ -28,6 +28,7 @@ import {
 import { intakePath } from "../lib/intake";
 import { roomsForAssessment } from "../lib/rooms";
 import type { Assessment, IntakeSection, NotificationItem, RoomConfig } from "../types";
+import type { ClientForm } from "./CustomForms";
 
 export function ReviewPage() {
   const { id } = useParams();
@@ -35,6 +36,7 @@ export function ReviewPage() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [allRooms, setAllRooms] = useState<RoomConfig[]>([]);
   const [sections, setSections] = useState<IntakeSection[]>([]);
+  const [forms, setForms] = useState<ClientForm[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [lightbox, setLightbox] = useState<number | null>(null);
@@ -44,10 +46,12 @@ export function ReviewPage() {
       api<{ assessment: Assessment }>(`/api/assessments/${id}`),
       api<{ rooms: RoomConfig[] }>("/api/config/rooms"),
       api<{ sections: IntakeSection[] }>("/api/config/intake"),
-    ]).then(([a, r, s]) => {
+      api<{ forms: ClientForm[] }>(`/api/assessments/${id}/forms`).catch(() => ({ forms: [] })),
+    ]).then(([a, r, s, formList]) => {
       setAssessment(a.assessment);
       setAllRooms(r.rooms);
       setSections(s.sections);
+      setForms(formList.forms);
     });
   }, [id]);
 
@@ -60,7 +64,21 @@ export function ReviewPage() {
   const uploaded = new Set(assessment.uploads.map((u) => u.roomCategory));
   const photographed = rooms.filter((room) => uploaded.has(room.id)).length;
   const missing = rooms.filter((room) => !uploaded.has(room.id));
-  const savedSections = sections.filter((s) => assessment.intake[s.id]).length;
+  const intakeForm = assessment.intakeFormId
+    ? (forms.find((form) => form.id === assessment.intakeFormId) ?? null)
+    : null;
+  const reviewSections = intakeForm
+    ? intakeForm.sections.map((section) => ({
+        id: section.id,
+        title: section.title,
+        saved: Boolean(intakeForm.answers[section.id]),
+      }))
+    : sections.map((section) => ({
+        id: section.id,
+        title: section.title,
+        saved: Boolean(assessment.intake[section.id]),
+      }));
+  const savedSections = reviewSections.filter((section) => section.saved).length;
   const photos = assessment.uploads.filter((u) => u.fileType === "photo").length;
   const videos = assessment.uploads.length - photos;
 
@@ -89,9 +107,9 @@ export function ReviewPage() {
         <StatTile
           icon={ClipboardList}
           label="Intake sections"
-          value={`${savedSections}/${sections.length}`}
-          hint={savedSections === sections.length ? "all saved" : "some still empty"}
-          tone={savedSections === sections.length ? "sage" : "amber"}
+          value={`${savedSections}/${reviewSections.length}`}
+          hint={savedSections === reviewSections.length ? "all saved" : "some still empty"}
+          tone={savedSections === reviewSections.length ? "sage" : "amber"}
         />
         <StatTile
           icon={Camera}
@@ -113,7 +131,7 @@ export function ReviewPage() {
         <CardHeader
           icon={ClipboardList}
           title="Intake answers"
-          subtitle={`${savedSections} of ${sections.length} sections saved`}
+          subtitle={`${savedSections} of ${reviewSections.length} sections saved`}
           action={
             <Link to={`/assessment/${id}/intake`} className="text-base">
               Edit intake
@@ -121,8 +139,8 @@ export function ReviewPage() {
           }
         />
         <ul className="grid gap-2 px-6 py-5 sm:grid-cols-2">
-          {sections.map((s) => {
-            const done = Boolean(assessment.intake[s.id]);
+          {reviewSections.map((s) => {
+            const done = s.saved;
             return (
               <li key={s.id} className="flex items-center gap-2.5 text-base">
                 <span
@@ -201,8 +219,8 @@ export function ReviewPage() {
       <Card className="p-6 sm:p-7">
         <p className="flex items-start gap-3 leading-relaxed">
           <Lock className="mt-1 size-5 shrink-0 text-teal" aria-hidden="true" />
-          Submitting locks your answers and photos so the reviewer sees a stable set of materials. We will email
-          you as soon as the report is ready.
+          Submitting locks your answers and photos so the reviewer sees a stable set of materials. Your written
+          report should be ready in 3 business days. We will email you when it is ready.
         </p>
         <div className="mt-5">
           <ErrorText>{error}</ErrorText>

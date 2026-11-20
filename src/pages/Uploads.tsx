@@ -13,7 +13,8 @@ import {
   Trash2,
 } from "lucide-react";
 import { api, mediaUrl } from "../api";
-import { Alert, Button, Card, Field, PageLoader, ProgressBar, TextArea } from "../components/ui";
+import { PhotoSources } from "../components/PhotoSources";
+import { Alert, Button, Card, Field, PageLoader, ProgressBar, TextArea, TextInput } from "../components/ui";
 import { intakePath } from "../lib/intake";
 import { roomsForAssessment } from "../lib/rooms";
 import type { Assessment, RoomConfig, Upload } from "../types";
@@ -27,6 +28,7 @@ export function UploadsPage() {
   const [assessment, setAssessment] = useState<Assessment | null>(null);
   const [index, setIndex] = useState(0);
   const [caption, setCaption] = useState("");
+  const [areaName, setAreaName] = useState("");
   const [busy, setBusy] = useState(0);
   const [dragging, setDragging] = useState(false);
 
@@ -54,7 +56,13 @@ export function UploadsPage() {
     if (index >= rooms.length) setIndex(0);
   }, [rooms.length, index]);
 
+  useEffect(() => {
+    setCaption("");
+    setAreaName("");
+  }, [index]);
+
   const room = rooms[index];
+  const captionNote = [areaName.trim(), caption.trim()].filter(Boolean).join(" — ") || undefined;
   const files = useMemo(
     () => assessment?.uploads.filter((u) => u.roomCategory === room?.id) ?? [],
     [assessment, room],
@@ -92,7 +100,7 @@ export function UploadsPage() {
         form.append("assessmentId", id);
         form.append("roomCategory", room.id);
         form.append("fileType", fileType);
-        if (caption) form.append("captionNote", caption);
+        if (captionNote) form.append("captionNote", captionNote);
         await api("/api/uploads/local", { method: "POST", body: form });
       } else {
         await fetch(presign.url, { method: "PUT", body: file, headers: presign.headers });
@@ -105,7 +113,7 @@ export function UploadsPage() {
             key: presign.key,
             contentType: file.type,
             fileName: file.name,
-            captionNote: caption || undefined,
+            captionNote,
           }),
         });
       }
@@ -245,23 +253,31 @@ export function UploadsPage() {
             </ol>
           </div>
 
-          {room.allowCaption ? (
+          {room.areaNameLabel ? (
             <div className="mt-6">
+              <Field label={room.areaNameLabel}>
+                <TextInput value={areaName} onChange={(e) => setAreaName(e.target.value)} />
+              </Field>
+            </div>
+          ) : null}
+
+          {room.allowCaption ? (
+            <div className={room.areaNameLabel ? "mt-4" : "mt-6"}>
               <Field label={room.captionLabel || "Note"} hint="Added to the photos you upload next.">
                 <TextArea value={caption} onChange={(e) => setCaption(e.target.value)} />
               </Field>
             </div>
           ) : null}
 
-          <label
+          <div
             onDragOver={(e) => {
               e.preventDefault();
               setDragging(true);
             }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
-            className={`mt-6 flex cursor-pointer flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-9 text-center transition-colors ${
-              dragging ? "border-teal bg-teal-soft" : "border-line-strong bg-linen/40 hover:bg-cream"
+            className={`mt-6 flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed px-6 py-9 text-center transition-colors ${
+              dragging ? "border-teal bg-teal-soft" : "border-line-strong bg-linen/40"
             }`}
           >
             <span className="grid size-12 place-items-center rounded-xl bg-teal text-white shadow-card">
@@ -269,20 +285,12 @@ export function UploadsPage() {
             </span>
             <span className="mt-1 text-lg font-medium">Add photos of this area</span>
             <span className="text-base text-muted">
-              Tap to choose from your phone or camera, or drag files here
+              Choose from your gallery, take a photo, or drag files here
             </span>
-            <input
-              className="sr-only"
-              type="file"
-              accept="image/*"
-              multiple
-              capture="environment"
-              onChange={(e) => {
-                addFiles(Array.from(e.target.files ?? []));
-                e.target.value = "";
-              }}
-            />
-          </label>
+            <div className="mt-3 w-full">
+              <PhotoSources multiple onPick={addFiles} />
+            </div>
+          </div>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-xl border border-line bg-paper px-4 py-2 text-base font-medium shadow-card transition-colors hover:bg-cream">

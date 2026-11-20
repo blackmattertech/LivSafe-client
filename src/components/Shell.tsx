@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, LogOut, UserRound } from "lucide-react";
+import { ClipboardList, FileDown, Home, LogOut, UserRound } from "lucide-react";
 import { mediaUrl } from "../api";
 import { useAuth } from "../auth";
 import { HOME_NAV } from "../lib/homeNav";
@@ -106,7 +106,23 @@ function MobileNav() {
   );
 }
 
-function ProfileMenu() {
+const APP_NAV = [
+  { to: "/dashboard", label: "Home", icon: Home, match: (path: string) => path === "/dashboard" },
+  {
+    to: "/assessments",
+    label: "Assessments",
+    icon: ClipboardList,
+    match: (path: string) => path.startsWith("/assessments"),
+  },
+  {
+    to: "/reports",
+    label: "Reports",
+    icon: FileDown,
+    match: (path: string) => path.startsWith("/reports"),
+  },
+] as const;
+
+function ProfileMenu({ letter }: { letter?: string }) {
   const { user, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
@@ -148,6 +164,10 @@ function ProfileMenu() {
               height={44}
               className="size-full object-cover"
             />
+          </span>
+        ) : letter ? (
+          <span className="grid size-11 shrink-0 place-items-center rounded-full bg-[#149a94] text-lg font-semibold text-white">
+            {letter}
           </span>
         ) : (
           <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-soft text-teal">
@@ -192,24 +212,28 @@ export function Shell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const onDashboard = pathname === "/dashboard";
   const onAuthHome = pathname === "/" || pathname === "/login";
+  const onIntake = /^\/assessment\/[^/]+\/(intake|forms\/[^/]+)\/?$/.test(pathname);
   const wide = /\/assessment\/[^/]+(\/(submitted|report))?$/.test(pathname);
   const bareLogin = onAuthHome;
+  const initial = (user?.name || user?.email || "").trim().charAt(0).toUpperCase();
 
   return (
-    <div className={`flex min-h-dvh flex-col overflow-x-clip ${onDashboard ? "bg-paper lg:bg-background" : ""}`}>
-      <a
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-paper focus:px-4 focus:py-3 focus:shadow-lift"
-        href="#main"
-      >
-        Skip to content
-      </a>
+    <div className={`flex min-h-dvh flex-col overflow-x-clip ${onIntake ? "intake-shell" : onDashboard ? "bg-paper lg:bg-background" : ""}`}>
+      {bareLogin ? null : (
+        <a
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-xl focus:bg-paper focus:px-4 focus:py-3 focus:shadow-lift"
+          href="#main"
+        >
+          Skip to content
+        </a>
+      )}
 
       <header
         className={`sticky top-0 z-30 bg-paper pt-[env(safe-area-inset-top)] ${
           onDashboard ? "lg:border-b lg:border-line" : "border-b border-line"
         } ${bareLogin ? "hidden" : ""}`}
       >
-        <div className={`mx-auto flex max-w-5xl items-center justify-between gap-2 py-3 sm:gap-3 sm:py-3.5 ${padX}`}>
+        <div className={`mx-auto grid w-full grid-cols-[1fr_auto] items-center gap-2 py-3 sm:gap-3 sm:py-3.5 lg:grid-cols-[1fr_auto_1fr] ${onIntake ? "max-w-[90rem]" : onDashboard ? "max-w-6xl" : "max-w-5xl"} ${padX}`}>
           <Link
             to={user ? "/dashboard" : "/"}
             className="group flex min-w-0 items-center no-underline"
@@ -225,18 +249,30 @@ export function Shell({ children }: { children: ReactNode }) {
           </Link>
 
           {user ? (
-            <div className="flex shrink-0 items-center gap-0.5 sm:gap-1">
-              {!onDashboard ? (
-                <Link
-                  to="/dashboard"
-                  className="hidden items-center gap-2 rounded-lg px-3.5 py-2.5 text-base font-medium text-teal no-underline transition-colors hover:bg-teal-soft md:inline-flex"
-                >
-                  <LayoutDashboard className="size-5" aria-hidden="true" />
-                  Dashboard
-                </Link>
-              ) : null}
-              <ProfileMenu />
+            <nav className="col-start-2 hidden items-center justify-center gap-1 lg:flex" aria-label="Portal">
+              {APP_NAV.map((item) => {
+                const active = item.match(pathname);
+                return (
+                  <Link
+                    key={item.to}
+                    to={item.to}
+                    aria-current={active ? "page" : undefined}
+                    className={`inline-flex min-h-11 items-center gap-2 rounded-full px-3.5 text-base font-medium no-underline ${
+                      active ? "bg-[#e7f6f4] text-[#0f6f6b]" : "text-[#4b5563] hover:bg-[#f4fbfa]"
+                    }`}
+                  >
+                    <item.icon className="size-5" aria-hidden="true" />
+                    {item.label}
+                  </Link>
+                );
+              })}
+            </nav>
+          ) : null}
+
+          {user ? (
+            <div className="col-start-2 flex shrink-0 items-center justify-end gap-0.5 sm:gap-1 lg:col-start-3">
               <Bell />
+              <ProfileMenu letter={onIntake || onDashboard ? initial : undefined} />
               <MobileNav />
             </div>
           ) : onAuthHome ? null : (
@@ -256,7 +292,13 @@ export function Shell({ children }: { children: ReactNode }) {
           bareLogin
             ? "min-h-dvh w-full"
             : `mx-auto w-full min-w-0 flex-1 animate-rise pb-[max(1.5rem,env(safe-area-inset-bottom))] ${padX} ${
-                wide ? "max-w-6xl py-5 sm:py-6" : onDashboard ? "max-w-5xl py-4 sm:py-6" : "max-w-5xl py-6 sm:py-10"
+                onIntake
+                  ? "max-w-[90rem] py-6 sm:py-8"
+                  : wide
+                    ? "max-w-6xl py-5 sm:py-6"
+                    : onDashboard
+                      ? "max-w-6xl py-4 sm:py-6"
+                      : "max-w-5xl py-6 sm:py-10"
               }`
         }
       >

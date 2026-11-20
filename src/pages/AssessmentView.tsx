@@ -53,6 +53,16 @@ function visibleField(field: IntakeField, data: Record<string, unknown>) {
   return field.showIf.oneOf.includes(String(data[field.showIf.field] ?? ""));
 }
 
+function isAnswered(
+  type: string | undefined,
+  value: unknown,
+  options?: { value: string; label: string }[],
+) {
+  if (type === "image" || type === "file") return fileAnswers(value).length > 0;
+  if (type === "boolean") return value === "yes" || value === "no" || typeof value === "boolean";
+  return formatValue(value, options) !== null;
+}
+
 function nextIncompleteHref(a: Assessment) {
   if (!a.requiresIntake) return "/reports";
   if (!a.intakeComplete) return intakePath(a);
@@ -123,8 +133,28 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
 
   const photos = assessment.uploads.filter((u) => u.fileType === "photo").length;
   const videos = assessment.uploads.filter((u) => u.fileType === "video").length;
-  const savedSections = sections.filter((s) => assessment.intake[s.id]).length;
+  const intakeForm = assessment.intakeFormId
+    ? (customForms.find((form) => form.id === assessment.intakeFormId) ?? null)
+    : null;
+  const savedSections = intakeForm
+    ? intakeForm.sections.filter((section) => intakeForm.answers[section.id]).length
+    : sections.filter((section) => assessment.intake[section.id]).length;
+  const sectionTotal = intakeForm ? intakeForm.sections.length : sections.length;
+  const answerCount = intakeForm
+    ? intakeForm.sections.reduce((sum, section) => {
+        const data = intakeForm.answers[section.id] ?? {};
+        return sum + section.fields.filter((field) => isAnswered(field.type, data[field.id], field.options)).length;
+      }, 0)
+    : sections.reduce((sum, section) => {
+        const data = (assessment.intake[section.id] ?? {}) as Record<string, unknown>;
+        return (
+          sum +
+          section.fields.filter((field) => visibleField(field, data) && formatValue(data[field.id], field.options) !== null)
+            .length
+        );
+      }, 0);
   const steps = timeline(assessment);
+  const reportReady = assessment.hasReport || assessment.status === "completed";
   const resident =
     (assessment.intake.client_info?.resident_name as string | undefined) ||
     assessment.user?.name ||
@@ -151,7 +181,8 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
             <StatusChip size="sm" status={assessment.status} label={assessment.statusLabel} />
           </div>
           <p className="mt-1 text-sm text-muted">
-            Submitted {formatDate(assessment.submittedAt)} · Ref {assessment.id.slice(0, 8)}
+            Submitted {formatDate(assessment.submittedAt)}
+            {reportReady ? ". Your report is ready." : ". Your report should be ready in 3 business days."}
           </p>
         </div>
         {assessment.hasReport || assessment.hasPackageFile ? (
@@ -180,10 +211,10 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 <DownloadLink
                   className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-line bg-paper px-4 text-sm font-medium text-teal-dark no-underline transition-colors hover:bg-cream"
                   path={`/api/assessments/${assessment.id}/report`}
-                  label="Download PDF"
+                  label="Download report"
                 >
                   <Download className="size-4" aria-hidden="true" />
-                  Download PDF
+                  Download report
                 </DownloadLink>
               </>
             ) : null}
@@ -206,7 +237,9 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 </span>
                 <span className="min-w-0">
                   <span className="block text-sm font-medium leading-tight">{step.label}</span>
-                  <span className="block text-xs text-muted">{step.done ? "Done" : "Waiting"}</span>
+                  <span className="block text-xs text-muted">
+                    {step.done ? "Done" : step.label === "Report" && !reportReady ? "3 business days" : "Waiting"}
+                  </span>
                 </span>
                 {i < steps.length - 1 ? (
                   <span className="mx-1 hidden h-px flex-1 bg-line sm:block" aria-hidden="true" />
@@ -219,7 +252,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
         <Card className="grid grid-cols-3 divide-x divide-line/80 lg:col-span-4">
           <Metric label="Photos" value={photos} hint={videos ? `${videos} video${videos === 1 ? "" : "s"}` : "files"} />
           <Metric label="Areas" value={assessment.roomsWithUploads} hint={`of ${assessment.totalRooms}`} />
-          <Metric label="Intake" value={`${savedSections}/${sections.length}`} hint="sections" />
+          <Metric label="Intake" value={`${savedSections}/${sectionTotal}`} hint="sections" />
         </Card>
       </div>
 
@@ -228,7 +261,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
           {(
             [
               { key: "photos" as const, label: "Photos", icon: Camera, count: assessment.uploads.length },
-              { key: "answers" as const, label: "Answers", icon: ClipboardList, count: savedSections },
+              { key: "answers" as const, label: "Answers", icon: ClipboardList, count: answerCount },
             ] as const
           ).map((item) => {
             const active = tab === item.key;
@@ -311,7 +344,7 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
           </div>
         ) : (
           <div className="grid gap-3 p-3 sm:grid-cols-2 sm:p-4">
-            {sections.map((section) => {
+            {intakeForm ? null : sections.map((section) => {
               const data = (assessment.intake[section.id] ?? {}) as Record<string, unknown>;
               const fields = section.fields.filter((f) => visibleField(f, data));
               const answered = fields.filter((f) => formatValue(data[f.id], f.options) !== null).length;
@@ -339,14 +372,17 @@ export function AssessmentViewPage({ focus = "photos" }: { focus?: Tab | "report
                 </section>
               );
             })}
-            {customForms.map((form) =>
+            {(intakeForm ? [intakeForm] : customForms).map((form) =>
               form.sections.map((section) => {
                 const data = form.answers[section.id] ?? {};
+                const answered = section.fields.filter((field) => isAnswered(field.type, data[field.id], field.options)).length;
                 return (
                   <section key={section.id} className="rounded-xl border border-line/80 bg-linen/30 p-3.5">
-                    <div className="mb-2.5">
-                      <p className="text-xs font-medium text-muted">{form.title}</p>
+                    <div className="mb-2.5 flex items-start justify-between gap-2">
                       <h2 className="text-sm font-semibold leading-snug">{section.title}</h2>
+                      <span className="shrink-0 text-xs tabular-nums text-muted">
+                        {answered}/{section.fields.length}
+                      </span>
                     </div>
                     <dl className="space-y-2">
                       {section.fields.map((field) => {
@@ -451,7 +487,8 @@ export function ReportPage() {
       .then(async (data) => {
         if (cancelled) return;
         setAssessment(data.assessment);
-        if (!data.assessment.hasReport) return;
+        const mime = data.assessment.reportMimeType;
+        if (!data.assessment.hasReport || (mime && mime !== "application/pdf")) return;
         objectUrl = await fetchAuthenticatedBlob(`/api/assessments/${id}/report`);
         if (cancelled) {
           URL.revokeObjectURL(objectUrl);
@@ -484,7 +521,9 @@ export function ReportPage() {
           Dashboard
         </Link>
         <h1 className="text-xl font-semibold">Your report is not ready yet</h1>
-        <p className="max-w-xl text-muted">LivSafe will email you when the written report is available in this portal.</p>
+        <p className="max-w-xl text-muted">
+          Your written report should be ready in 3 business days. LivSafe will email you when it is available in this portal.
+        </p>
       </div>
     );
   }
@@ -501,18 +540,22 @@ export function ReportPage() {
             Dashboard
           </Link>
           <h1 className="mt-1 text-xl font-semibold tracking-tight sm:text-2xl">Your LivSafe report</h1>
-          <p className="mt-1 text-sm text-muted">Read it here, or download a copy to print.</p>
+          <p className="mt-1 text-sm text-muted">
+            {assessment.reportMimeType && assessment.reportMimeType !== "application/pdf"
+              ? "Download the file to open it."
+              : "Read it here, or download a copy to print."}
+          </p>
         </div>
         <DownloadLink
           className="inline-flex min-h-11 items-center gap-2 rounded-lg bg-primary px-4 text-sm font-medium text-white no-underline shadow-card transition-colors hover:bg-primary-hover"
           path={`/api/assessments/${assessment.id}/report`}
-          label="Download PDF"
+          label="Download report"
         >
           <Download className="size-4" aria-hidden="true" />
-          Download PDF
+          Download report
         </DownloadLink>
       </div>
-      {pdfUrl ? (
+      {assessment.reportMimeType && assessment.reportMimeType !== "application/pdf" ? null : pdfUrl ? (
         <iframe
           title="LivSafe report"
           src={pdfUrl}

@@ -5,20 +5,21 @@ import {
   CheckCircle2,
   Eye,
   EyeOff,
-  Handshake,
+  Camera,
+  FileText,
   Headset,
   Heart,
+  House,
   KeyRound,
   Loader2,
   Lock,
   Mail,
   MailCheck,
-  Shield,
   ShieldCheck,
   UserPlus,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { api, ApiError } from "../api";
+import { api, ApiError, websiteUrl } from "../api";
 import { useAuth } from "../auth";
 import { Alert, Button, Card, ErrorText, Field, TextInput } from "../components/ui";
 import { VoiceChrome } from "../components/VoiceInput";
@@ -27,26 +28,16 @@ const REMEMBER_KEY = "livsafe-client-remember-email";
 const BRAND_LOGO =
   "https://res.cloudinary.com/hoevqlxx/image/upload/v1791102373/ktmc_text_back_pdf.pdf.png";
 const LOGIN_BG =
-  "https://res.cloudinary.com/hoevqlxx/image/upload/v1791645170/c3538082-6ea6-48e0-80a2-9e9aa9ca581d.webp";
+  "https://res.cloudinary.com/hoevqlxx/image/upload/v1795151934/Icy_Blue_Abstract_Wave_Gradient.webp";
+
 const SUPPORT_EMAIL = "hello@livsafehomesafety.com";
-const SITE_ORIGIN = "https://livsafehome.com";
+const SITE_ORIGIN = websiteUrl;
 
 const DESKTOP_FEATURES = [
-  {
-    icon: Shield,
-    title: "Safer",
-    body: "Spot fall risks before they become a problem",
-  },
-  {
-    icon: Heart,
-    title: "Healthier",
-    body: "Support independence in the home that matters",
-  },
-  {
-    icon: Handshake,
-    title: "Together",
-    body: "Built for the person living there — and family nearby or far away",
-  },
+  { icon: House, label: "Personalized Guidance" },
+  { icon: Camera, label: "Upload Photos" },
+  { icon: FileText, label: "Get Your Review" },
+  { icon: Heart, label: "Safer Living at Home" },
 ] as const;
 
 function AuthCard({
@@ -246,43 +237,49 @@ export function LoginPage() {
             Contact Support
           </a>
         </div>
+
+        <div className="mt-auto flex flex-col items-center gap-1 pt-6 text-center">
+          <p className="text-base text-muted">
+            <a href={`${SITE_ORIGIN}/disclaimer/`} className="no-underline hover:underline">
+              Disclaimer
+            </a>
+            <span className="mx-2 text-line-strong" aria-hidden="true">
+              |
+            </span>
+            <a href={`${SITE_ORIGIN}/terms/`} className="no-underline hover:underline">
+              Terms & Conditions
+            </a>
+          </p>
+          <p className="text-sm text-text-muted">© {new Date().getFullYear()} LivSafe. All rights reserved.</p>
+        </div>
       </div>
     </div>
 
     <div className="login-desktop-bg hidden min-h-dvh lg:grid lg:grid-cols-2">
-      <aside className="flex min-h-dvh min-w-0 flex-col px-8 py-6 xl:px-12 xl:py-8">
-        <div>
+      <aside className="login-intro flex min-h-dvh min-w-0 flex-col justify-center px-10 py-10 xl:px-16">
+        <div className="login-intro-inner">
           <img src={BRAND_LOGO} alt="LivSafe" width={2172} height={724} className="client-login-logo" />
-          <p className="mt-3 text-sm font-medium tracking-[0.18em] text-[#4b6470] uppercase">
-            Safer spaces · Healthier lives
+          <p className="login-intro-kicker">Home safety education & consulting</p>
+          <hr className="login-intro-rule" />
+          <h2>Welcome Back</h2>
+          <p className="login-intro-sub">Your home safety journey continues here.</p>
+          <p className="login-intro-body">
+            Sign in to complete your home safety questionnaire, upload photographs, or view your personalized review.
           </p>
-        </div>
-        <div className="max-w-xl pt-8 xl:pt-10">
-          <h2 className="text-pretty text-[clamp(1.875rem,2.6vw,2.75rem)] font-bold leading-tight tracking-tight text-ink">
-            Creating <span className="text-wellness">safer spaces</span> for a{" "}
-            <span className="text-[#2563EB]">healthier tomorrow</span>.
-          </h2>
-          <p className="mt-4 text-base leading-relaxed text-muted xl:text-lg">
-            LivSafe is a remote home safety assessment. Complete a questionnaire, upload photos, and receive
-            prioritized recommendations — no one visits the home.
-          </p>
-          <ul className="mt-5 space-y-3">
+          <ul className="login-intro-cards">
             {DESKTOP_FEATURES.map((item) => (
-              <li key={item.title} className="flex gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-full bg-wellness text-white">
-                  <item.icon className="size-5" aria-hidden="true" />
-                </span>
-                <span className="min-w-0 pt-0.5">
-                  <span className="block text-base font-semibold text-ink">{item.title}</span>
-                  <span className="mt-0.5 block text-base leading-snug text-muted">{item.body}</span>
-                </span>
+              <li key={item.label}>
+                <item.icon aria-hidden="true" />
+                <span>{item.label}</span>
               </li>
             ))}
           </ul>
+          <p className="login-intro-sign">
+            Where independence
+            <br />
+            <span>meets peace of mind.</span>
+          </p>
         </div>
-        <p className="mt-auto pt-6 text-sm font-medium tracking-[0.18em] text-[#4b6470] uppercase">
-          A safer tomorrow together
-        </p>
       </aside>
 
       <div className="flex min-h-dvh min-w-0 flex-col">
@@ -353,14 +350,14 @@ export function LoginPage() {
 
         <div className="flex shrink-0 flex-col items-center gap-1 px-6 py-3 text-center">
           <p className="text-base text-muted">
-            <a href={`${SITE_ORIGIN}/privacy/`} className="no-underline hover:underline">
-              Privacy Policy
+            <a href={`${SITE_ORIGIN}/disclaimer/`} className="no-underline hover:underline">
+              Disclaimer
             </a>
             <span className="mx-2 text-line-strong" aria-hidden="true">
               |
             </span>
             <a href={`${SITE_ORIGIN}/terms/`} className="no-underline hover:underline">
-              Terms of Service
+              Terms & Conditions
             </a>
           </p>
           <p className="text-sm text-text-muted">© {new Date().getFullYear()} LivSafe. All rights reserved.</p>

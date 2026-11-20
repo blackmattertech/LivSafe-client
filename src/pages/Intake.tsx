@@ -1,25 +1,97 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, Navigate, useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, ArrowRight, Camera, Check, ClipboardList, Save } from "lucide-react";
-import { api } from "../api";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import {
-  Button,
-  Card,
-  ChoiceCard,
-  Field,
-  PageLoader,
-  PhoneInput,
-  ProgressBar,
-  StepDots,
-  TextArea,
-  TextInput,
-} from "../components/ui";
+  ArrowLeft,
+  ArrowRight,
+  Calendar,
+  Check,
+  ExternalLink,
+  FileText,
+  Headset,
+  HeartHandshake,
+  Mail,
+  MoreHorizontal,
+  ShieldCheck,
+  Smile,
+  User,
+  UserRound,
+  Users,
+} from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { api, websiteUrl } from "../api";
+import { Button, ChoiceCard, Field, PageLoader, PhoneInput, TextArea, TextInput } from "../components/ui";
+import { SectionMenu } from "../components/SectionMenu";
 import { intakePath } from "../lib/intake";
 import type { Assessment, IntakeField, IntakeSection } from "../types";
+
+const SECTION_BLURB: Record<string, string> = {
+  client_info: "Basic details for your written review",
+  home_setup: "Home type and who lives there",
+  reason: "What prompted this review",
+  falls: "Areas where you feel less steady",
+  mobility: "Space, access, and clear paths",
+  equipment: "Equipment already in the home",
+  areas_of_concern: "Rooms and concerns to review",
+};
+
+const FIELD_ICON: Record<string, LucideIcon> = {
+  resident_name: UserRound,
+  age: Calendar,
+  email: Mail,
+  completer_name: UserRound,
+  completer_relationship: Users,
+};
+
+const FIELD_PLACEHOLDER: Record<string, string> = {
+  resident_name: "Enter first name",
+  age: "Enter age",
+  email: "Enter email address",
+  completer_name: "Enter your name",
+  completer_relationship: "e.g. Spouse, Son or daughter, Caregiver",
+  lives_with: "e.g. Spouse, son or daughter, roommate",
+  home_type_other: "Describe the home type",
+};
+
+const CHOICE_ICON: Record<string, LucideIcon> = {
+  person_in_home: User,
+  spouse: Users,
+  adult_child: UserRound,
+  other_family: Users,
+  caregiver: HeartHandshake,
+  friend: Smile,
+  other: MoreHorizontal,
+};
+
+const PAIRED_FIELDS = [
+  ["resident_name", "age"],
+  ["email", "phone"],
+  ["completer_name", "completer_relationship"],
+];
 
 function visible(field: IntakeField, data: Record<string, unknown>) {
   if (!field.showIf) return true;
   return field.showIf.oneOf.includes(String(data[field.showIf.field] ?? ""));
+}
+
+function fieldRows(fields: IntakeField[]) {
+  const remaining = [...fields];
+  const rows: IntakeField[][] = [];
+  while (remaining.length) {
+    const current = remaining[0];
+    const pair = PAIRED_FIELDS.find((ids) => ids[0] === current.id);
+    const partner = pair ? remaining.find((field) => field.id === pair[1]) : undefined;
+    if (partner) {
+      rows.push([current, partner]);
+      remaining.splice(0, 1);
+      remaining.splice(
+        remaining.findIndex((field) => field.id === partner.id),
+        1,
+      );
+    } else {
+      rows.push([remaining.shift()!]);
+    }
+  }
+  return rows;
 }
 
 export function IntakePage() {
@@ -110,276 +182,325 @@ export function IntakePage() {
   if (assessment.intakeFormId) return <Navigate to={intakePath(assessment)} replace />;
   if (assessment.submittedAt) return <Navigate to={`/assessment/${id}/submitted`} replace />;
 
+  const rows = fieldRows(fields);
+  const sectionSaved = Boolean(assessment.intake[section.id]);
+
+  function renderField(field: IntakeField) {
+    const hasIcon = field.id in FIELD_ICON;
+    const FieldIcon = FIELD_ICON[field.id];
+    const placeholder = field.placeholder || FIELD_PLACEHOLDER[field.id];
+    const control =
+      field.type === "textarea" ? (
+        <TextArea
+          density="comfortable"
+          required={field.required}
+          placeholder={placeholder}
+          value={String(data[field.id] ?? "")}
+          onChange={(e) => setField(field.id, e.target.value)}
+        />
+      ) : field.type === "single" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field.options?.map((opt) => (
+            <ChoiceCard
+              key={opt.value}
+              density="comfortable"
+              type="radio"
+              name={field.id}
+              required={field.required}
+              icon={field.id === "completed_by" ? CHOICE_ICON[opt.value] : undefined}
+              checked={data[field.id] === opt.value}
+              onChange={() => setField(field.id, opt.value)}
+              label={opt.label}
+            />
+          ))}
+        </div>
+      ) : field.type === "multi" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {field.options?.map((opt) => {
+            const selected = Array.isArray(data[field.id]) ? (data[field.id] as string[]) : [];
+            const on = selected.includes(opt.value);
+            const exclusive = field.exclusiveOption;
+            return (
+              <ChoiceCard
+                key={opt.value}
+                density="comfortable"
+                type="checkbox"
+                checked={on}
+                onChange={() => {
+                  if (on) {
+                    setField(
+                      field.id,
+                      selected.filter((value) => value !== opt.value),
+                    );
+                    return;
+                  }
+                  if (exclusive && opt.value === exclusive) {
+                    setField(field.id, [exclusive]);
+                    return;
+                  }
+                  if (exclusive) {
+                    setField(field.id, [...selected.filter((value) => value !== exclusive), opt.value]);
+                    return;
+                  }
+                  setField(field.id, [...selected, opt.value]);
+                }}
+                label={opt.label}
+              />
+            );
+          })}
+        </div>
+      ) : field.type === "checkbox" ? (
+        <label className="flex min-h-11 cursor-pointer items-start gap-3 rounded-xl border border-line bg-paper px-4 py-3 text-base leading-relaxed shadow-card">
+          <input
+            className="mt-1 size-5 shrink-0 accent-teal"
+            type="checkbox"
+            required={field.required}
+            checked={data[field.id] === true || data[field.id] === "yes"}
+            onChange={(e) => setField(field.id, e.target.checked)}
+          />
+          <span>{field.label}</span>
+        </label>
+      ) : field.type === "tel" ? (
+        <PhoneInput
+          id={field.id}
+          density="comfortable"
+          required={field.required}
+          countryCode={String(data.phone_country_code ?? "+1")}
+          number={String(data[field.id] ?? "")}
+          onCountryChange={(code) => setField("phone_country_code", code)}
+          onNumberChange={(value) => setField(field.id, value)}
+        />
+      ) : (
+        <div className={hasIcon ? "intake-icon-field" : undefined}>
+          {hasIcon ? <FieldIcon className="intake-field-icon" aria-hidden="true" /> : null}
+          <TextInput
+            density="comfortable"
+            className={hasIcon ? "pl-11" : ""}
+            type={field.type === "number" ? "text" : field.type}
+            inputMode={field.type === "number" ? "numeric" : field.type === "email" ? "email" : undefined}
+            autoComplete={field.type === "email" ? "email" : field.id === "resident_name" ? "name" : "off"}
+            pattern={field.type === "number" ? "[0-9]*" : undefined}
+            required={field.required}
+            placeholder={placeholder}
+            value={data[field.id] == null ? "" : String(data[field.id])}
+            onChange={(e) => {
+              const raw = e.target.value;
+              setField(field.id, field.type === "number" ? raw.replace(/\D/g, "") : raw);
+            }}
+          />
+        </div>
+      );
+
+    if (field.type === "checkbox") {
+      return (
+        <div key={field.id} className="space-y-2">
+          {control}
+          {field.help ? <p className="text-sm leading-relaxed text-muted">{field.help}</p> : null}
+        </div>
+      );
+    }
+
+    return (
+      <Field
+        key={field.id}
+        label={field.label}
+        hint={field.help}
+        required={field.required}
+        requiredMark="star"
+        as={field.type === "single" || field.type === "multi" || field.type === "tel" ? "fieldset" : "label"}
+        density="comfortable"
+      >
+        {control}
+      </Field>
+    );
+  }
+
   return (
-    <div className="grid min-w-0 gap-6 xl:grid-cols-[16rem_minmax(0,1fr)] xl:items-start">
-      <nav aria-label="Intake sections" className="hidden min-w-0 xl:sticky xl:top-24 xl:block">
-        <Card className="p-4">
-          <p className="mb-3 flex items-center gap-2 px-1 text-base font-semibold">
-            <ClipboardList className="size-5 text-teal" aria-hidden="true" />
-            Intake
+    <div className="intake-page">
+      <header className="intake-hero">
+        <img
+          src="https://res.cloudinary.com/hoevqlxx/image/upload/f_auto,q_auto/v1795160843/656fed2a-9a17-464c-828a-a024ee29ce26.webp"
+          alt=""
+          width={2172}
+          height={724}
+        />
+        <div className="intake-hero-text">
+          <h1>Home Safety Assessment</h1>
+          <p className="intake-hero-lead">Let&apos;s understand the home and the person living in it.</p>
+          <p className="intake-hero-copy">
+            Your answers help prepare personalized home safety recommendations.
           </p>
-          <ol className="flex flex-col space-y-1">
-            {sections.map((s, i) => {
-              const done = Boolean(assessment?.intake[s.id]);
+        </div>
+      </header>
+
+      <div className="intake-mobile-progress">
+        <div>
+          <span>
+            Section {index + 1} of {sections.length}
+          </span>
+          <strong>{progressPct}% complete</strong>
+        </div>
+        <div
+          className="intake-meter"
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={sections.length}
+          aria-valuenow={savedCount}
+          aria-label="Intake progress"
+        >
+          <span style={{ width: `${progressPct}%` }} />
+        </div>
+      </div>
+
+      <div className="intake-layout">
+        <nav className="intake-card intake-sections" aria-label="Assessment sections">
+          <div className="intake-card-head">
+            <h2>Assessment Sections</h2>
+            <p>
+              {sections.length} total section{sections.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <ol>
+            {sections.map((item, i) => {
               const active = i === index;
               return (
-                <li key={s.id}>
-                  <button
-                    type="button"
-                    onClick={() => goToSection(i)}
-                    className={`flex min-h-11 w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-base transition-colors ${
-                      active ? "bg-teal-soft font-medium text-ink" : "text-muted hover:bg-linen"
-                    }`}
-                    aria-current={active ? "step" : undefined}
-                  >
-                    <span
-                      className={`grid size-6 shrink-0 place-items-center rounded-full text-sm ${
-                        done || active ? "bg-teal text-white" : "border border-line-strong"
-                      }`}
-                      aria-hidden="true"
-                    >
-                      {done ? <Check className="size-3.5" strokeWidth={3} /> : i + 1}
+                <li key={item.id}>
+                  <button type="button" onClick={() => goToSection(i)} aria-current={active ? "step" : undefined}>
+                    <span className={active ? "is-current" : undefined}>{i + 1}</span>
+                    <span>
+                      <strong>{item.title}</strong>
+                      {SECTION_BLURB[item.id] ? <small>{SECTION_BLURB[item.id]}</small> : null}
                     </span>
-                    <span className="leading-snug">{s.title}</span>
                   </button>
                 </li>
               );
             })}
           </ol>
-          <p className="mt-3 border-t border-line/70 px-1 pt-3 text-sm text-muted">
-            {savedCount} of {sections.length} sections saved
+          <p className="intake-saved-note">
+            <FileText aria-hidden="true" />
+            <span>Your progress is saved when you continue</span>
+            {sectionSaved ? <Check aria-hidden="true" /> : null}
           </p>
-        </Card>
-      </nav>
+        </nav>
 
-      <div className="mx-auto w-full min-w-0 max-w-2xl">
-        <div className="sticky top-[calc(env(safe-area-inset-top)+3.75rem)] z-20 -mx-4 mb-4 border-b border-line bg-paper/95 px-4 py-3 backdrop-blur-sm xl:static xl:mx-0 xl:mb-5 xl:rounded-xl xl:border xl:bg-paper xl:px-6 xl:py-5 xl:shadow-card xl:backdrop-blur-none">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <p className="text-base font-semibold text-ink xl:font-medium xl:text-muted">
-                Section {index + 1} of {sections.length}
-              </p>
-              <Link to={`/assessment/${id}/forms`} className="text-base font-medium">
-                Forms
-              </Link>
-            </div>
-            <p className="text-base font-medium tabular-nums text-teal xl:hidden">{progressPct}%</p>
-            <div className="hidden sm:block xl:block">
-              <StepDots total={sections.length} current={index} />
-            </div>
-          </div>
-          <div
-            className="mt-2.5 h-2.5 overflow-hidden rounded-full bg-line xl:hidden"
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={sections.length}
-            aria-valuenow={savedCount}
-            aria-label="Intake progress"
-          >
-            <div
-              className="h-full rounded-full bg-teal transition-all duration-500"
-              style={{ width: `${progressPct}%` }}
-            />
-          </div>
-          <label className="mt-3 block xl:hidden">
-            <span className="sr-only">Jump to a section</span>
-            <select
-              className="min-h-14 w-full rounded-xl border border-line-strong bg-paper px-4 text-lg text-ink"
-              value={index}
-              onChange={(e) => goToSection(Number(e.target.value))}
-            >
-              {sections.map((s, i) => (
-                <option key={s.id} value={i}>
-                  {i + 1}. {s.title}
-                  {assessment?.intake[s.id] ? " ✓" : ""}
-                </option>
-              ))}
-            </select>
-          </label>
-          <div className="mt-4 hidden xl:block">
-            <ProgressBar
-              value={savedCount}
-              max={sections.length}
-              label="Intake progress"
-              tone="teal"
-            />
-          </div>
-        </div>
+        <section className="intake-card intake-form-card">
+          <p className="intake-kicker">
+            Section {index + 1} of {sections.length}
+          </p>
+          <h2>{section.title}</h2>
+          {section.description ? <p className="intake-section-copy">{section.description}</p> : null}
 
-        <div className="rounded-2xl border border-line bg-paper p-4 shadow-card sm:p-8 xl:rounded-xl">
-          <p className="text-base font-semibold text-teal xl:hidden">Take your time</p>
-          <h1 className="mt-1 text-pretty text-[1.75rem] font-semibold leading-tight tracking-tight sm:text-3xl xl:mt-0">
-            {section.title}
-          </h1>
-          {section.description ? (
-            <p className="mt-3 text-pretty text-lg leading-relaxed text-muted xl:mt-2 xl:text-base">
-              {section.description}
-            </p>
-          ) : null}
+          <SectionMenu
+            sections={sections}
+            index={index}
+            saved={sections.map((item) => Boolean(assessment.intake[item.id]))}
+            onPick={goToSection}
+          />
 
           <form
             id="intake-form"
-            className="mt-6 space-y-8 xl:mt-7 xl:space-y-7"
             onSubmit={(e) => {
               e.preventDefault();
               void save(index + 1);
             }}
           >
-            {fields.map((field) => {
-              const isGroup = field.type === "single" || field.type === "multi" || field.type === "tel";
-              return (
-                <Field
-                  key={field.id}
-                  label={field.label}
-                  hint={field.help}
-                  required={field.required}
-                  as={isGroup ? "fieldset" : "label"}
-                  density="comfortable"
-                >
-                  {field.type === "textarea" ? (
-                    <TextArea
-                      density="comfortable"
-                      required={field.required}
-                      placeholder={field.placeholder}
-                      value={String(data[field.id] ?? "")}
-                      onChange={(e) => setField(field.id, e.target.value)}
-                    />
-                  ) : field.type === "single" ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {field.options?.map((opt) => (
-                        <ChoiceCard
-                          key={opt.value}
-                          density="comfortable"
-                          type="radio"
-                          name={field.id}
-                          required={field.required}
-                          checked={data[field.id] === opt.value}
-                          onChange={() => setField(field.id, opt.value)}
-                          label={opt.label}
-                        />
-                      ))}
-                    </div>
-                  ) : field.type === "multi" ? (
-                    <div className="grid gap-3 md:grid-cols-2">
-                      {field.options?.map((opt) => {
-                        const selected = Array.isArray(data[field.id]) ? (data[field.id] as string[]) : [];
-                        const on = selected.includes(opt.value);
-                        return (
-                          <ChoiceCard
-                            key={opt.value}
-                            density="comfortable"
-                            type="checkbox"
-                            checked={on}
-                            onChange={() =>
-                              setField(
-                                field.id,
-                                on ? selected.filter((v) => v !== opt.value) : [...selected, opt.value],
-                              )
-                            }
-                            label={opt.label}
-                          />
-                        );
-                      })}
-                    </div>
-                  ) : field.type === "tel" ? (
-                    <PhoneInput
-                      id={field.id}
-                      density="comfortable"
-                      required={field.required}
-                      countryCode={String(data.phone_country_code ?? "+1")}
-                      number={String(data[field.id] ?? "")}
-                      onCountryChange={(code) => setField("phone_country_code", code)}
-                      onNumberChange={(value) => setField(field.id, value)}
-                    />
-                  ) : (
-                    <TextInput
-                      density="comfortable"
-                      type={field.type === "number" ? "text" : field.type}
-                      inputMode={
-                        field.type === "number"
-                          ? "numeric"
-                          : field.type === "email"
-                            ? "email"
-                            : undefined
-                      }
-                      autoComplete={
-                        field.type === "email"
-                          ? "email"
-                          : field.id === "resident_name"
-                            ? "name"
-                            : "off"
-                      }
-                      pattern={field.type === "number" ? "[0-9]*" : undefined}
-                      required={field.required}
-                      placeholder={field.placeholder}
-                      value={data[field.id] == null ? "" : String(data[field.id])}
-                      onChange={(e) => {
-                        const raw = e.target.value;
-                        setField(field.id, field.type === "number" ? raw.replace(/\D/g, "") : raw);
-                      }}
-                    />
-                  )}
-                </Field>
-              );
-            })}
-
-            <div className="hidden border-t border-line/70 pt-6 xl:flex xl:flex-wrap xl:items-center xl:gap-3">
-              {index > 0 ? (
-                <Button type="button" variant="secondary" icon={ArrowLeft} onClick={() => void save(index - 1)}>
-                  Back
-                </Button>
-              ) : null}
-              <Button type="submit" loading={saving} icon={isLast ? Camera : ArrowRight}>
-                {isLast ? "Save and continue to photos" : "Save and continue"}
-              </Button>
-              <span className="flex items-center gap-1.5 text-base text-muted">
-                <Save className="size-4" aria-hidden="true" />
-                Answers save when you continue
-              </span>
+            <div className="intake-fields">
+              {rows.map((row) => (
+                <div key={row.map((field) => field.id).join("-")} className={row.length > 1 ? "intake-field-row" : undefined}>
+                  {row.map((field) => renderField(field))}
+                </div>
+              ))}
+            </div>
+            <div className="intake-private-mobile">
+              <ShieldCheck aria-hidden="true" />
+              <div>
+                <strong>Your information is private and secure.</strong>
+                <p>All responses are used only for your home safety assessment.</p>
+              </div>
             </div>
 
-            <div className="h-28 xl:hidden" aria-hidden="true" />
+            <div className="intake-form-foot">
+              <p className="intake-saved-note">
+                <FileText aria-hidden="true" />
+                <span>Your progress is saved when you continue</span>
+                {sectionSaved ? <Check aria-hidden="true" /> : null}
+              </p>
+              <div className="intake-form-actions">
+                <Button type="button" variant="secondary" icon={ArrowLeft} disabled={index === 0 || saving} onClick={() => void save(index - 1)}>
+                  Previous
+                </Button>
+                <p>
+                  {savedCount} of {sections.length} sections saved
+                </p>
+                <Button type="submit" className="intake-next" loading={saving}>
+                  {isLast ? "Continue to photos" : "Save and continue"}
+                  {saving ? null : <ArrowRight className="size-5" aria-hidden="true" />}
+                </Button>
+              </div>
+            </div>
           </form>
-        </div>
+        </section>
 
-        {assessment ? (
-          <p className="mt-5 hidden text-center text-base text-muted xl:block">
-            Finished the questions already?{" "}
-            <Link to={`/assessment/${assessment.id}/uploads`}>Skip ahead to photos</Link>
-          </p>
-        ) : null}
+        <aside className="intake-rail" aria-label="Progress and help">
+          <section className="intake-card intake-progress">
+            <div className="intake-progress-top">
+              <div>
+                <h2>Your progress</h2>
+                <p>
+                  <strong>{progressPct}%</strong>
+                </p>
+              </div>
+              <p>
+                Section {index + 1} of {sections.length}
+              </p>
+            </div>
+            <div
+              className="intake-meter"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={sections.length}
+              aria-valuenow={savedCount}
+              aria-label="Intake progress"
+            >
+              <span style={{ width: `${progressPct}%` }} />
+            </div>
+            <ol>
+              {sections.map((item, i) => (
+                <li key={item.id} className={i === index ? "is-current" : undefined}>
+                  <span aria-hidden="true" />
+                  {i + 1}. {item.title}
+                </li>
+              ))}
+            </ol>
+          </section>
+
+          <section className="intake-card intake-help">
+            <Headset aria-hidden="true" />
+            <h2>Need help?</h2>
+            <p>Our team is here if you have any questions about the assessment.</p>
+            <a href={`${websiteUrl}/contact/`} target="_blank" rel="noopener noreferrer">
+              Contact support
+              <ExternalLink aria-hidden="true" />
+            </a>
+          </section>
+
+          <section className="intake-card intake-private">
+            <ShieldCheck aria-hidden="true" />
+            <h2>Your information is private</h2>
+            <p>All information and photos you share are used only for your home safety assessment.</p>
+          </section>
+        </aside>
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-line bg-paper px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-lift xl:hidden">
-        <div className="mx-auto flex max-w-2xl gap-3">
-          {index > 0 ? (
-            <Button
-              type="button"
-              variant="secondary"
-              size="lg"
-              icon={ArrowLeft}
-              className="shrink-0"
-              disabled={saving}
-              onClick={() => void save(index - 1)}
-            >
-              Back
-            </Button>
-          ) : null}
-          <Button
-            type="submit"
-            form="intake-form"
-            size="lg"
-            loading={saving}
-            className="min-w-0 flex-1"
-            icon={isLast ? Camera : ArrowRight}
-          >
-            {isLast ? "Continue to photos" : "Save and continue"}
-          </Button>
-        </div>
-        <p className="mx-auto mt-2 max-w-2xl text-center text-sm text-muted">
-          Your answers are saved when you continue
-        </p>
+      <div className="intake-mobile-bar">
+        <Button type="button" variant="secondary" icon={ArrowLeft} disabled={index === 0 || saving} onClick={() => void save(index - 1)}>
+          Previous
+        </Button>
+        <Button type="submit" form="intake-form" className="intake-next" loading={saving}>
+          {isLast ? "Continue to photos" : "Save and continue"}
+        </Button>
       </div>
     </div>
   );
 }
+
